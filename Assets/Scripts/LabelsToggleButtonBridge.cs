@@ -12,7 +12,5 @@ public class LabelsToggleButtonBridge : MonoBehaviour
         {
             Debug.Log("[Labels] No heart model spawned yet — scan the marker first.");
         }
-
-        MenuToggle.CloseOpenMenu();
     }
 }

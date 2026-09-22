@@ -29,8 +29,11 @@ public class ExplanationPanelController : MonoBehaviour
     {
         if (isLoading) return; // don't stack multiple requests
 
-        panelRoot.SetActive(true);
+        // Explanations are modal content, so clear other overlays first.
+        LabelToggleController.HideOpenLabels();
+        ChatbotController.CloseOpenChat();
         MenuToggle.CloseOpenMenu();
+        panelRoot.SetActive(true);
         explanationText.text = "Thinking...";
         StartCoroutine(FetchExplanation());
     }
@@ -38,6 +41,12 @@ public class ExplanationPanelController : MonoBehaviour
     public void HidePanel()
     {
         panelRoot.SetActive(false);
+    }
+
+    public static void CloseOpenExplanation()
+    {
+        if (Instance != null)
+            Instance.HidePanel();
     }
 
     IEnumerator FetchExplanation()

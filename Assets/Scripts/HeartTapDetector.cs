@@ -44,6 +44,11 @@ public class HeartTapDetector : MonoBehaviour
         Ray ray = Camera.main.ScreenPointToRay(screenPos);
         if (Physics.Raycast(ray, out RaycastHit hit))
         {
+            // A label tap selects that label; it must not also open the generic
+            // explanation panel behind it.
+            if (hit.transform.GetComponentInParent<LabelSelectionInteraction>() != null)
+                return;
+
             // Only fire if the tap actually landed on this heart (or a child of it).
             if (hit.transform.IsChildOf(transform) || hit.transform == transform)
             {
