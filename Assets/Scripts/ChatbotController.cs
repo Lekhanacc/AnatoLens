@@ -56,6 +56,7 @@ public void OpenChat()
     }
 
     panelRoot.SetActive(true);
+    MenuToggle.CloseOpenMenu();
 }
     public void CloseChat()
     {
@@ -157,4 +158,4 @@ public void OpenChat()
     {
         return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n");
     }
-} 
+}

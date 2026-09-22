@@ -30,6 +30,7 @@ public class ExplanationPanelController : MonoBehaviour
         if (isLoading) return; // don't stack multiple requests
 
         panelRoot.SetActive(true);
+        MenuToggle.CloseOpenMenu();
         explanationText.text = "Thinking...";
         StartCoroutine(FetchExplanation());
     }

@@ -14,5 +14,7 @@ public class HeartbeatToggleBridge : MonoBehaviour
         {
             Debug.Log("[Heartbeat] No heart model spawned yet — scan the marker first.");
         }
+
+        MenuToggle.CloseOpenMenu();
     }
 }
