@@ -6,7 +6,9 @@ public class LabelToggleController : MonoBehaviour
 
     public GameObject labelsContainer; // drag the "Labels" object here
 
-    private bool labelsVisible = true;
+    // The Labels GameObject starts inactive in HeartPrefab, so this must start false
+    // for the first Labels button press to reveal it.
+    private bool labelsVisible = false;
 
     void Awake()
     {
