@@ -10,5 +10,7 @@ public class ResetButtonController : MonoBehaviour
         {
             heart.ResetModel();
         }
+
+        MenuToggle.CloseOpenMenu();
     }
 }

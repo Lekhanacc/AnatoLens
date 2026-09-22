@@ -10,7 +10,7 @@ public class HeartbeatAnimator : MonoBehaviour
     [Range(0f, 0.3f)]
     public float pulseStrength = 0.08f;
 
-    public bool isBeating = true;
+    public bool isBeating = false;
 
     private Vector3 baseScale;
     private float phase = 0f;
@@ -52,4 +52,4 @@ public class HeartbeatAnimator : MonoBehaviour
         if (!isBeating)
             transform.localScale = baseScale; // snap back to resting size when stopped
     }
-} 
+}

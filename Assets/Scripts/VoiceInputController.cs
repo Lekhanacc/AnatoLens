@@ -31,11 +31,14 @@ public class VoiceInputController : MonoBehaviour
         if (!Permission.HasUserAuthorizedPermission(Permission.Microphone))
         {
             Permission.RequestUserPermission(Permission.Microphone);
+            MenuToggle.CloseOpenMenu();
             return; // user needs to tap again after granting
         }
 
         if (!isRecording) StartRecording();
         else StopRecordingAndSend();
+
+        MenuToggle.CloseOpenMenu();
     }
 
     void StartRecording()
