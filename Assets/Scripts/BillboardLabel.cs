@@ -8,12 +8,20 @@ public class BillboardLabel : MonoBehaviour
     [SerializeField] private float verticalOffsetPixels = 34f;
     [SerializeField, Min(0.1f)] private float lineWidthPixels = 1.5f;
     [SerializeField] private Color leaderLineColor = new Color(0.92f, 0.97f, 1f, 0.9f);
+    [SerializeField] private Color selectedColor = new Color(1f, 0.8f, 0.15f, 1f);
 
     private Camera cachedCamera;
     private Transform textTransform;
+    private TMP_Text labelText;
     private Vector3 originalTextLocalScale;
     private LineRenderer leaderLine;
     private Material leaderLineMaterial;
+    private GameObject selectionMarker;
+    private Vector3 selectionMarkerBaseScale;
+    private Color originalTextColor;
+    private bool isSelected;
+
+    private static BillboardLabel selectedLabel;
 
     void Awake()
     {
@@ -56,12 +64,20 @@ public class BillboardLabel : MonoBehaviour
         // text legible instead of shrinking into the mesh or growing with it.
         ApplyConstantTextScale();
 
+        Color currentColor = isSelected ? selectedColor : leaderLineColor;
+        leaderLine.startColor = currentColor;
+        leaderLine.endColor = currentColor;
+        if (leaderLineMaterial != null)
+            leaderLineMaterial.color = currentColor;
+
         leaderLine.SetPosition(0, anchorPosition);
         leaderLine.SetPosition(1, labelPosition);
         float worldUnitsPerPixel = GetWorldUnitsPerPixel(anchorOnScreen.z);
         float lineWidth = Mathf.Max(0.0001f, worldUnitsPerPixel * lineWidthPixels);
         leaderLine.startWidth = lineWidth;
         leaderLine.endWidth = lineWidth;
+
+        UpdateSelectionMarker(isInFrontOfCamera);
     }
 
     void OnDestroy()
@@ -72,12 +88,21 @@ public class BillboardLabel : MonoBehaviour
 
     private void CacheTextTransform()
     {
-        TMP_Text labelText = GetComponentInChildren<TMP_Text>(true);
+        labelText = GetComponentInChildren<TMP_Text>(true);
         if (labelText == null)
             return;
 
         textTransform = labelText.transform;
         originalTextLocalScale = textTransform.localScale;
+        originalTextColor = labelText.color;
+
+        LabelSelectionInteraction interaction =
+            textTransform.GetComponent<LabelSelectionInteraction>();
+        if (interaction == null)
+            interaction = textTransform.gameObject.AddComponent<LabelSelectionInteraction>();
+        interaction.Initialize(this);
+
+        ConfigureHitArea();
     }
 
     private void ConfigureLeaderLine()
@@ -111,6 +136,75 @@ public class BillboardLabel : MonoBehaviour
             originalTextLocalScale.x / Mathf.Max(Mathf.Abs(parentScale.x), 0.0001f),
             originalTextLocalScale.y / Mathf.Max(Mathf.Abs(parentScale.y), 0.0001f),
             originalTextLocalScale.z / Mathf.Max(Mathf.Abs(parentScale.z), 0.0001f));
+    }
+
+    public void Select()
+    {
+        if (selectedLabel != null && selectedLabel != this)
+            selectedLabel.SetSelected(false);
+
+        selectedLabel = this;
+        SetSelected(true);
+    }
+
+    private void SetSelected(bool selected)
+    {
+        isSelected = selected;
+        if (labelText != null)
+            labelText.color = selected ? selectedColor : originalTextColor;
+
+        if (selectionMarker != null)
+            selectionMarker.SetActive(selected);
+    }
+
+    private void ConfigureHitArea()
+    {
+        labelText.ForceMeshUpdate();
+        BoxCollider hitArea = textTransform.GetComponent<BoxCollider>();
+        if (hitArea == null)
+            hitArea = textTransform.gameObject.AddComponent<BoxCollider>();
+
+        Bounds textBounds = labelText.bounds;
+        hitArea.center = textBounds.center;
+        hitArea.size = new Vector3(
+            Mathf.Max(textBounds.size.x, 0.5f),
+            Mathf.Max(textBounds.size.y, 0.5f),
+            0.25f);
+    }
+
+    private void UpdateSelectionMarker(bool anchorIsVisible)
+    {
+        if (!isSelected)
+            return;
+
+        if (selectionMarker == null)
+            CreateSelectionMarker();
+
+        selectionMarker.SetActive(anchorIsVisible);
+        float pulse = 1f + 0.2f * Mathf.Sin(Time.unscaledTime * 6f);
+        selectionMarker.transform.localScale = selectionMarkerBaseScale * pulse;
+    }
+
+    private void CreateSelectionMarker()
+    {
+        selectionMarker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        selectionMarker.name = "Label Selection Marker";
+        selectionMarker.transform.SetParent(transform, false);
+        selectionMarker.transform.localPosition = Vector3.zero;
+        selectionMarkerBaseScale = Vector3.one * 0.0015f;
+        selectionMarker.transform.localScale = selectionMarkerBaseScale;
+
+        Collider markerCollider = selectionMarker.GetComponent<Collider>();
+        if (markerCollider != null)
+            Destroy(markerCollider);
+
+        Renderer markerRenderer = selectionMarker.GetComponent<Renderer>();
+        Shader markerShader = Shader.Find("Sprites/Default");
+        if (markerShader != null)
+        {
+            Material markerMaterial = new Material(markerShader) { color = selectedColor };
+            markerRenderer.material = markerMaterial;
+        }
     }
 
     private float GetWorldUnitsPerPixel(float depth)
