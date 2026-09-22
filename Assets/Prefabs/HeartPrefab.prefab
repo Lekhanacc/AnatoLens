@@ -120,7 +120,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   beatsPerMinute: 72
   pulseStrength: 0.08
-  isBeating: 1
+  isBeating: 0
 --- !u!114 &3164626224667800431
 MonoBehaviour:
   m_ObjectHideFlags: 0
