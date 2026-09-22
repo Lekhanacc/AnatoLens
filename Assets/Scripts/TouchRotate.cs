@@ -4,37 +4,40 @@ public class TouchRotate : MonoBehaviour
 {
     public float rotationSpeed = 0.8f;
 
-    void Update()
+void Update()
+{
+    if (Input.touchCount == 1)
     {
-        // Only rotate with one finger.
-        // Two fingers are reserved for pinch zoom.
-        if (Input.touchCount == 1)
+        Touch touch = Input.GetTouch(0);
+
+        if (touch.phase == TouchPhase.Moved)
         {
-            Touch touch = Input.GetTouch(0);
+            Vector2 delta = CompensateForOrientation(touch.deltaPosition);
 
-            if (touch.phase == TouchPhase.Moved)
-            {
-                float horizontal = touch.deltaPosition.x;
-                float vertical = touch.deltaPosition.y;
+            float rotY = -delta.x * rotationSpeed;
+            float rotX = delta.y * rotationSpeed;
 
-                // Left / Right → Y-axis rotation
-                float rotY = -horizontal * rotationSpeed;
-
-                // Up / Down → X-axis rotation
-                float rotX = vertical * rotationSpeed;
-
-                transform.Rotate(
-                    Vector3.up,
-                    rotY,
-                    Space.World
-                );
-
-                transform.Rotate(
-                    Vector3.right,
-                    rotX,
-                    Space.Self
-                );
-            }
+            transform.Rotate(Vector3.up, rotY, Space.World);
+            transform.Rotate(Vector3.right, rotX, Space.Self);
         }
     }
+}
+
+Vector2 CompensateForOrientation(Vector2 rawDelta)
+{
+    switch (Screen.orientation)
+    {
+        case ScreenOrientation.LandscapeLeft:
+            return new Vector2(-rawDelta.y, rawDelta.x);
+
+        case ScreenOrientation.LandscapeRight:
+            return new Vector2(rawDelta.y, -rawDelta.x);
+
+        case ScreenOrientation.PortraitUpsideDown:
+            return new Vector2(-rawDelta.x, -rawDelta.y);
+
+        default:
+            return rawDelta;
+    }
+}
 }
