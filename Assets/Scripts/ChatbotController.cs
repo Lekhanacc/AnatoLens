@@ -7,6 +7,8 @@ using System.Text;
 
 public class ChatbotController : MonoBehaviour
 {
+    public static ChatbotController Instance { get; private set; }
+
     [Header("UI References")]
     public GameObject panelRoot;         // drag ChatPanel here
     public TMP_Text chatHistoryText;     // drag ChatHistoryText here
@@ -26,10 +28,15 @@ public class ChatbotController : MonoBehaviour
     private List<ChatMessage> conversation = new List<ChatMessage>();
     private bool isLoading = false;
 
-    void Start()
+    void Awake()
     {
-        // Give the assistant context about what it's helping with.
-        
+        Instance = this;
+    }
+
+    void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
     }
 
     private string lastOrganName = null;
@@ -55,12 +62,21 @@ public void OpenChat()
         lastOrganName = organName;
     }
 
-    panelRoot.SetActive(true);
+    // Chat owns the overlay while it is open.
+    LabelToggleController.HideOpenLabels();
+    ExplanationPanelController.CloseOpenExplanation();
     MenuToggle.CloseOpenMenu();
+    panelRoot.SetActive(true);
 }
     public void CloseChat()
     {
         panelRoot.SetActive(false);
+    }
+
+    public static void CloseOpenChat()
+    {
+        if (Instance != null)
+            Instance.CloseChat();
     }
 
     // Wire this to the Send button's OnClick.

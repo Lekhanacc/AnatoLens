@@ -13,7 +13,16 @@ public class MenuToggle : MonoBehaviour
 
     public void ToggleMenu()
     {
-        menuPanel.SetActive(!menuPanel.activeSelf);
+        bool openingMenu = !menuPanel.activeSelf;
+        if (openingMenu)
+        {
+            // Keep exactly one screen overlay open at a time.
+            ChatbotController.CloseOpenChat();
+            ExplanationPanelController.CloseOpenExplanation();
+            LabelToggleController.HideOpenLabels();
+        }
+
+        menuPanel.SetActive(openingMenu);
     }
 
     public void CloseMenu()

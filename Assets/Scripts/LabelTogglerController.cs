@@ -22,8 +22,31 @@ public class LabelToggleController : MonoBehaviour
 
     public void ToggleLabels()
     {
-        labelsVisible = !labelsVisible;
+        if (labelsVisible)
+        {
+            HideLabels();
+            return;
+        }
+
+        // Labels are a viewing mode, not another panel layered over the UI.
+        ChatbotController.CloseOpenChat();
+        ExplanationPanelController.CloseOpenExplanation();
+        MenuToggle.CloseOpenMenu();
+        labelsVisible = true;
         if (labelsContainer != null)
-            labelsContainer.SetActive(labelsVisible);
+            labelsContainer.SetActive(true);
+    }
+
+    public void HideLabels()
+    {
+        labelsVisible = false;
+        if (labelsContainer != null)
+            labelsContainer.SetActive(false);
+    }
+
+    public static void HideOpenLabels()
+    {
+        if (Instance != null)
+            Instance.HideLabels();
     }
 }
