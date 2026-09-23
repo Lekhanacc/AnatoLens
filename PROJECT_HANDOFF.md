@@ -21,9 +21,12 @@ This guide records the current project structure, the important behavior already
 | `Assets/MyImages.asset` | XR Reference Image Library assigned to the active scene's `ARTrackedImageManager`. It currently contains the Heart and Brain marker images. |
 | `Assets/Prefabs/HeartPrefab.prefab` | Heart model, labels, heartbeat component, and interaction scripts. |
 | `Assets/Prefabs/BrainPrefab.prefab` | Brain model with rotate, zoom, reset, tap/explanation, and organ identity components. It does not have Heart labels or heartbeat animation. |
+| `Assets/Prefabs/EyePrefab.prefab` | Eye FBX model with rotate, zoom, reset, tap/explanation, and organ identity components. It has no anatomical labels or heartbeat animation yet. |
 | `Assets/Models/Heart/` | Heart FBX and its texture assets. |
 | `Assets/Models/Brain/source/Rotten Brain.glb` | Imported Brain GLB model. Its extracted textures are under `Assets/Models/Brain/textures/`. |
+| `Assets/Models/Eye/` | Eye FBX under `source/` and its color, bump, and specular textures under `textures/`. |
 | `Assets/Brain.png` | Brain tracking/reference image currently used by `MyImages.asset`. |
+| `Assets/Eye.png` | Eye tracking/reference image currently used by `MyImages.asset`. |
 | `Assets/Scripts/` | AR tracking, model interactions, labels, UI overlays, chat, explanation, voice input, and support scripts. |
 | `Packages/com.unity.cloud.gltfast/` | Embedded copy of glTFast 6.14.1 with one GLES3 shader include correction. The manifest points to this local package. |
 
@@ -114,7 +117,10 @@ Use the same name as the reference image. Add an explicit entry rather than rely
 | Brain model | `Assets/Models/Brain/source/Rotten Brain.glb`, textures extracted under `Assets/Models/Brain/textures/`; prefab is `Assets/Prefabs/BrainPrefab.prefab`. |
 | Brain model transform | The imported mesh child is scaled to `(0.0015,0.0015,0.0015)`, about 11.4 × 12.8 × 14.9 cm by its source bounds; the parent handles rotation and pinch zoom. The root has a different authored scale but is reset to one by the spawner at runtime. |
 | Brain prefab contents | `BrainPrefab` → `BrainModel` (rotate/zoom/reset/tap and ModelInfo scripts) → `Brain` mesh with renderer and collider. Add future `Labels` as a sibling of `Brain` under `BrainModel`, with label anchors and `LabelToggleController` wired as described above. There is no heartbeat animation. |
-| Sample scene mapping | `Heart` → `HeartPrefab`; `Brain` → `BrainPrefab`. |
+| Eye marker | `Assets/Eye.png`; entry named `Eye` in `Assets/MyImages.asset`. Its physical size is unspecified so ARCore can estimate it; use a sharp, flat print with enough detail and test tracking on the target device. |
+| Eye model | `Assets/Models/Eye/source/Eye.fbx` and the color/bump/specular maps in `Assets/Models/Eye/textures/`; prefab is `Assets/Prefabs/EyePrefab.prefab`. The FBX is kept as a nested model prefab so its import/material references remain intact. |
+| Eye prefab contents | `EyePrefab` → `EyeModel` (rotate/zoom/reset/tap, BoxCollider, and `ModelInfo` set to `Eye`) → imported `Eye` model. The model is initially scaled to about 12 cm on its longest axis. It has no anatomical labels or heartbeat animation yet. |
+| Sample scene mapping | `Heart` → `HeartPrefab`; `Brain` → `BrainPrefab`; `Eye` → `EyePrefab`. |
 
 ## Android shader build fix
 

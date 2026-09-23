@@ -1166,6 +1166,8 @@ MonoBehaviour:
     prefab: {fileID: 6167502639423310338, guid: e87fe1eb00c810843b28a68176dafb94, type: 3}
   - imageName: Brain
     prefab: {fileID: 3742212306128251053, guid: 40bd7bf328ba7c145979b3b2023c2617, type: 3}
+  - imageName: Eye
+    prefab: {fileID: 5667250002636836855, guid: e615e24223e1276488ef30beb4ba1306, type: 3}
 --- !u!114 &254885135
 MonoBehaviour:
   m_ObjectHideFlags: 0
