@@ -18,15 +18,18 @@ This guide records the current project structure, the important behavior already
 | --- | --- |
 | `Assets/Scenes/SampleScene.unity` | Active build scene. Contains the AR session, image manager/spawner, organ controls, and app UI. |
 | `Assets/ARapp.unity` | Older/alternate scene. It is not currently enabled in Build Settings and still has an `AnimalCell` image-to-prefab entry. Do not assume edits here affect the Android build. |
-| `Assets/MyImages.asset` | XR Reference Image Library assigned to the active scene's `ARTrackedImageManager`. It currently contains the Heart and Brain marker images. |
+| `Assets/MyImages.asset` | XR Reference Image Library assigned to the active scene's `ARTrackedImageManager`. It contains the Heart, Brain, Eye, and Lung marker images. |
 | `Assets/Prefabs/HeartPrefab.prefab` | Heart model, labels, heartbeat component, and interaction scripts. |
 | `Assets/Prefabs/BrainPrefab.prefab` | Brain model with rotate, zoom, reset, tap/explanation, and organ identity components. It does not have Heart labels or heartbeat animation. |
-| `Assets/Prefabs/EyePrefab.prefab` | Eye FBX model with rotate, zoom, reset, tap/explanation, and organ identity components. It has no anatomical labels or heartbeat animation yet. |
+| `Assets/Prefabs/EyePrefab.prefab` | Eye GLB model with rotate, zoom, reset, tap/explanation, and organ identity components. It has no anatomical labels or heartbeat animation yet. |
+| `Assets/Prefabs/LungPrefab.prefab` | Lung FBX with rotate, zoom, reset, tap/explanation, and organ identity components. |
 | `Assets/Models/Heart/` | Heart FBX and its texture assets. |
 | `Assets/Models/Brain/source/Rotten Brain.glb` | Imported Brain GLB model. Its extracted textures are under `Assets/Models/Brain/textures/`. |
-| `Assets/Models/Eye/` | Eye FBX under `source/` and its color, bump, and specular textures under `textures/`. |
+| `Assets/Models/Eye/` | Active Eye GLB under `Replacement/`; its base-color texture is embedded in the model. |
+| `Assets/Models/Lung/` | Lung FBX under `source/` and its textures under `textures/`. |
 | `Assets/Brain.png` | Brain tracking/reference image currently used by `MyImages.asset`. |
 | `Assets/Eye.png` | Eye tracking/reference image currently used by `MyImages.asset`. |
+| `Assets/Lung.png` | Lung tracking/reference image used by `MyImages.asset`. Its physical size is unspecified so ARCore can estimate it. |
 | `Assets/Scripts/` | AR tracking, model interactions, labels, UI overlays, chat, explanation, voice input, and support scripts. |
 | `Packages/com.unity.cloud.gltfast/` | Embedded copy of glTFast 6.14.1 with one GLES3 shader include correction. The manifest points to this local package. |
 
@@ -120,7 +123,9 @@ Use the same name as the reference image. Add an explicit entry rather than rely
 | Eye marker | `Assets/Eye.png`; entry named `Eye` in `Assets/MyImages.asset`. Its physical size is unspecified so ARCore can estimate it; use a sharp, flat print with enough detail and test tracking on the target device. |
 | Eye model | `Assets/Models/Eye/Replacement/eye.glb` is the active and only Eye model. It is imported by the embedded glTFast package, and its base-color texture is embedded in the GLB. Keep the model’s own materials; no external eye texture is needed. |
 | Eye prefab contents | `EyePrefab` → `EyeModel` (rotate/zoom/reset/tap, BoxCollider, and `ModelInfo` set to `Eye`) → imported `eye.glb` model (`EyeReplacement`). The model is uniformly scaled to about 12 cm on its longest axis and turned 180° around local X so its front faces the screen. It has no anatomical labels or heartbeat animation yet. |
-| Sample scene mapping | `Heart` → `HeartPrefab`; `Brain` → `BrainPrefab`; `Eye` → `EyePrefab`. |
+| Lung marker and model | `Assets/Lung.png` is registered as `Lung` with unspecified physical size. `Assets/Models/Lung/source/Lung_with_Holes_Final.fbx` supplies the model; the prefab scales its longest dimension to about 18 cm and centers it. Test the model's orientation and size in AR on the device. |
+| Lung prefab contents | `LungPrefab` → `LungModel` (rotate/zoom/reset/tap, fitted BoxCollider, and `ModelInfo` set to `Lung`) → imported `Lung` FBX hierarchy. It has no labels or heartbeat animation yet. |
+| Sample scene mapping | `Heart` → `HeartPrefab`; `Brain` → `BrainPrefab`; `Eye` → `EyePrefab`; `Lung` → `LungPrefab`. |
 
 Eye model attribution: “Eye” by germydan, [Sketchfab source](https://sketchfab.com/3d-models/eye-07c3674cfc26460d803f8f497f8c0f35), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The mesh is unchanged; it is uniformly scaled for AR display.
 
