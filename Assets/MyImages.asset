@@ -47,3 +47,13 @@ MonoBehaviour:
     m_SpecifySize: 0
     m_Name: Eye
     m_Texture: {fileID: 2800000, guid: ddb32452bc7ef2d4bb26dc4053dc7cf0, type: 3}
+  - m_SerializedGuid:
+      m_GuidLow: 5023249060963907466
+      m_GuidHigh: 10535282569050728586
+    m_SerializedTextureGuid:
+      m_GuidLow: 7062918866259468883
+      m_GuidHigh: 5580744060760721978
+    m_Size: {x: 0, y: 0}
+    m_SpecifySize: 0
+    m_Name: Lung
+    m_Texture: {fileID: 2800000, guid: b4cce253874962043a8a03bc27c9724d, type: 3}
