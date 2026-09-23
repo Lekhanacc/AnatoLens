@@ -9,7 +9,7 @@ This guide records the current project structure, the important behavior already
 - AR Foundation and ARCore packages: **5.2.2**
 - glTFast: **6.14.1**, embedded locally under `Packages/com.unity.cloud.gltfast` because of the Android GLES3 shader fix described below.
 - Current Git branch: `codex/add-brain-organ`
-- Latest feature commit before this handoff document: `0670e56` (`Add Brain marker and fix Android glTF shader build`).
+- Review `git log --oneline` for the current feature and documentation commits on this branch.
 - The enabled scene in `ProjectSettings/EditorBuildSettings.asset` is `Assets/Scenes/SampleScene.unity`.
 
 ## Project layout
@@ -51,6 +51,7 @@ Unity `.meta` files contain asset GUIDs referenced by scenes, prefabs, and libra
 - **Heartbeat:** `HeartbeatAnimator.cs` can pulse the Heart; the Heart prefab currently starts with `isBeating` off. Do not add this behavior to other organs unless it makes sense for them.
 - **Fix/Unlock:** `TrackedImageSpawner.ToggleLock()` detaches the current visible model from its image and adds `ScreenLockFollower.cs` so it remains in front of the camera. Unlock reparents it to the tracked image. The follower corrects for the rendered model bounds and smooths camera position movement.
 - **Overlays:** menu, labels, explanation, and chat cooperate to close other modes when one opens. See `MenuToggle.cs`, `LabelToggleController.cs`, `ChatbotController.cs`, and `ExplanationPanelController.cs` when changing overlay behavior.
+- **Contextual touch menu:** the menu opens from a larger bottom-left launcher and lays out larger action buttons in a compact drawer. The `Beat` item is visible only when the active model has `HeartbeatAnimator`; `Labels` is visible only when it has `LabelToggleController`. This keeps those Heart-only controls off Brain and other organs without those components. Layout sizes are applied by `MenuToggle.cs` against the Canvas scaler, so edit its constants if adapting the menu for a different screen design.
 - **AI chat and explanation:** the scripts send requests to OpenAI's Chat Completions endpoint; chat uses organ context and explanation requests a short student-friendly explanation.
 - **Voice input:** `VoiceInputController.cs` records microphone audio, requests Android microphone permission, transcribes through Whisper, and places the transcript into chat.
 - **Camera configuration:** `ARCameraConfigSelector.cs` chooses the lowest available camera configuration once after receiving a frame.
@@ -142,4 +143,4 @@ The shader source fix is committed, but an Android build after the correction st
 
 ## Recent development milestones
 
-The branch history shows the project evolving from initial AR setup through pinch zoom/reset and touch rotation, then adding model locking/stability, menu and heartbeat behavior, readable/selectable heart labels, coordinated overlays, and finally the Brain prefab, Brain reference image, and Android glTFast shader correction. Review `git log --oneline` for the exact commit history. This handoff describes the current checkout; check the active branch and Unity Editor state before making follow-up changes.
+The branch history shows the project evolving from initial AR setup through pinch zoom/reset and touch rotation, then adding model locking/stability, menu and heartbeat behavior, readable/selectable heart labels, coordinated overlays, and finally the Brain prefab, Brain reference image, Android glTFast shader correction, and a larger organ-aware menu. Review `git log --oneline` for the exact commit history. This handoff describes the current checkout; check the active branch and Unity Editor state before making follow-up changes.
