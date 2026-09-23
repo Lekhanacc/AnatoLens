@@ -16,8 +16,8 @@ public class TouchRotate : MonoBehaviour
         // Use screen-relative swipe directions and world axes so an authored model
         // orientation (such as Brain's) cannot change which axis each swipe uses.
         Vector2 delta = touch.deltaPosition;
-        float rotY = -delta.y * rotationSpeed;
-        float rotX = delta.x * rotationSpeed;
+        float rotY = -delta.x * rotationSpeed;
+        float rotX = delta.y * rotationSpeed;
 
         transform.Rotate(Vector3.up, rotY, Space.World);
         transform.Rotate(Vector3.right, rotX, Space.World);
