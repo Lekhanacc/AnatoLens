@@ -4,40 +4,22 @@ public class TouchRotate : MonoBehaviour
 {
     public float rotationSpeed = 0.8f;
 
-void Update()
-{
-    if (Input.touchCount == 1)
+    void Update()
     {
+        if (Input.touchCount != 1)
+            return;
+
         Touch touch = Input.GetTouch(0);
+        if (touch.phase != TouchPhase.Moved)
+            return;
 
-        if (touch.phase == TouchPhase.Moved)
-        {
-            Vector2 delta = CompensateForOrientation(touch.deltaPosition);
+        // Use screen-relative swipe directions and world axes so an authored model
+        // orientation (such as Brain's) cannot change which axis each swipe uses.
+        Vector2 delta = touch.deltaPosition;
+        float rotY = -delta.x * rotationSpeed;
+        float rotX = delta.y * rotationSpeed;
 
-            float rotY = -delta.x * rotationSpeed;
-            float rotX = delta.y * rotationSpeed;
-
-            transform.Rotate(Vector3.up, rotY, Space.World);
-            transform.Rotate(Vector3.right, rotX, Space.Self);
-        }
+        transform.Rotate(Vector3.up, rotY, Space.World);
+        transform.Rotate(Vector3.right, rotX, Space.World);
     }
-}
-
-Vector2 CompensateForOrientation(Vector2 rawDelta)
-{
-    switch (Screen.orientation)
-    {
-        case ScreenOrientation.LandscapeLeft:
-            return new Vector2(-rawDelta.y, rawDelta.x);
-
-        case ScreenOrientation.LandscapeRight:
-            return new Vector2(rawDelta.y, -rawDelta.x);
-
-        case ScreenOrientation.PortraitUpsideDown:
-            return new Vector2(-rawDelta.x, -rawDelta.y);
-
-        default:
-            return rawDelta;
-    }
-}
 }
