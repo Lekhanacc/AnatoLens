@@ -13,13 +13,13 @@ public class TouchRotate : MonoBehaviour
         if (touch.phase != TouchPhase.Moved)
             return;
 
-        // Touch delta is already expressed in screen coordinates. Keep horizontal
-        // swipes mapped to world-Y yaw in portrait and landscape orientations.
+        // Use screen-relative swipe directions and world axes so an authored model
+        // orientation (such as Brain's) cannot change which axis each swipe uses.
         Vector2 delta = touch.deltaPosition;
-        float rotY = -delta.x * rotationSpeed;
-        float rotX = delta.y * rotationSpeed;
+        float rotY = -delta.y * rotationSpeed;
+        float rotX = delta.x * rotationSpeed;
 
         transform.Rotate(Vector3.up, rotY, Space.World);
-        transform.Rotate(Vector3.right, rotX, Space.Self);
+        transform.Rotate(Vector3.right, rotX, Space.World);
     }
 }
