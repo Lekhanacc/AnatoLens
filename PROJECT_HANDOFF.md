@@ -42,7 +42,7 @@ Unity `.meta` files contain asset GUIDs referenced by scenes, prefabs, and libra
 ## Existing app behavior
 
 - **Image-to-organ display:** `TrackedImageSpawner.cs` maintains tracked image references and spawned models. `SampleScene` maps `Heart` to `HeartPrefab` and `Brain` to `BrainPrefab`.
-- **Touch rotation:** `TouchRotate.cs` rotates the organ on one-finger drags and compensates for screen orientation.
+- **Touch rotation:** `TouchRotate.cs` rotates the organ on one-finger drags. Horizontal screen swipes drive world-Y rotation and vertical swipes drive local-X rotation consistently in portrait and landscape; touch deltas are already screen-relative, so do not remap their axes by `Screen.orientation`.
 - **Pinch zoom:** `PinchZoom.cs` scales the controller object on two-finger pinches. Its current default limits are 0.5–2.0 times that object's authored scale.
 - **Reset:** `ResetHeart.cs` restores the controller's starting local scale and rotation. The class name is historical; it is used on the Brain prefab too. The global UI bridge `ResetButtonController.cs` finds a `ResetHeart` in the scene.
 - **Tap for explanation:** `HeartTapDetector.cs` detects a short tap on the organ collider and opens the explanation panel. A tap on a label is treated as label selection instead.
