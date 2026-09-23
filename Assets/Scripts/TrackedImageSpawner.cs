@@ -169,34 +169,48 @@ public class TrackedImageSpawner : MonoBehaviour
         // CREATE HEART
         // --------------------------------------------------
 
+        GameObject prefab = ResolvePrefab(imageName);
+        if (prefab == null)
+        {
+            Debug.LogWarning(
+                "[AR] No prefab is configured for image '" + imageName +
+                "'. Assign a fallback prefab or add an image-specific entry.");
+            return;
+        }
+
+        GameObject obj = Instantiate(prefab);
+
+        // Attach the same heart model to every recognized image in the
+        // reference library unless that image has a specific prefab override.
+        obj.transform.SetParent(trackedImage.transform, false);
+        obj.transform.localPosition = Vector3.zero;
+        obj.transform.localRotation = Quaternion.identity;
+        obj.transform.localScale = Vector3.one;
+
+        spawnedObjects.Add(imageName, obj);
+        Debug.Log("[AR] Prefab spawned on tracked image: " + imageName);
+    }
+
+    GameObject ResolvePrefab(string imageName)
+    {
+        if (imagePrefabs == null || imagePrefabs.Count == 0)
+            return null;
+
+        // Preserve image-specific assignments. The first configured prefab
+        // is the default, so newly added library images need no extra mapping.
         foreach (var item in imagePrefabs)
         {
-            if (item.imageName == imageName)
-            {
-                GameObject obj = Instantiate(item.prefab);
-
-                // Attach Heart to tracked image
-                obj.transform.SetParent(
-                    trackedImage.transform,
-                    false
-                );
-
-                // Put Heart at center of image
-                obj.transform.localPosition = Vector3.zero;
-
-                obj.transform.localRotation = Quaternion.identity;
-
-                obj.transform.localScale = Vector3.one;
-
-                spawnedObjects.Add(imageName, obj);
-
-                Debug.Log(
-                    "[AR] Heart spawned on image: " + imageName
-                );
-
-                break;
-            }
+            if (item != null && item.imageName == imageName && item.prefab != null)
+                return item.prefab;
         }
+
+        foreach (var item in imagePrefabs)
+        {
+            if (item != null && item.prefab != null)
+                return item.prefab;
+        }
+
+        return null;
     }
 
 
