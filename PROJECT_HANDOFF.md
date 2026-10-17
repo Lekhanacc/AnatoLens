@@ -11,6 +11,8 @@ This guide records the current project structure, the important behavior already
 - Current Git branch: `codex/add-brain-organ`
 - Review `git log --oneline` for the current feature and documentation commits on this branch.
 - The enabled scene in `ProjectSettings/EditorBuildSettings.asset` is `Assets/Scenes/SampleScene.unity`.
+- The app name used by the onboarding UI is **AnatoLens**.
+- The current working tree contains uncommitted work from earlier sessions. Review `git status` before staging or reverting anything; organ assets, scenes, metadata, and scripts may all have user changes.
 
 ## Project layout
 
@@ -18,19 +20,27 @@ This guide records the current project structure, the important behavior already
 | --- | --- |
 | `Assets/Scenes/SampleScene.unity` | Active build scene. Contains the AR session, image manager/spawner, organ controls, and app UI. |
 | `Assets/ARapp.unity` | Older/alternate scene. It is not currently enabled in Build Settings and still has an `AnimalCell` image-to-prefab entry. Do not assume edits here affect the Android build. |
-| `Assets/MyImages.asset` | XR Reference Image Library assigned to the active scene's `ARTrackedImageManager`. It contains the Heart, Brain, Eye, and Lung marker images. |
+| `Assets/MyImages.asset` | XR Reference Image Library assigned to the active scene's `ARTrackedImageManager`. It contains the Heart, Brain, Eye, Lung, Kidney, Skeleton, Neuron, and Female reproductive system markers. |
 | `Assets/Prefabs/HeartPrefab.prefab` | Heart model, labels, heartbeat component, and interaction scripts. |
 | `Assets/Prefabs/BrainPrefab.prefab` | Brain model with rotate, zoom, reset, tap/explanation, and organ identity components. It does not have Heart labels or heartbeat animation. |
 | `Assets/Prefabs/EyePrefab.prefab` | Eye GLB model with rotate, zoom, reset, tap/explanation, and organ identity components. It has no anatomical labels or heartbeat animation yet. |
 | `Assets/Prefabs/LungPrefab.prefab` | Lung FBX with rotate, zoom, reset, tap/explanation, and organ identity components. |
+| `Assets/Prefabs/KidneyPrefab.prefab` | Kidney FBX with rotate, zoom, reset, tap/explanation, and organ identity components. |
+| `Assets/Prefabs/SkeletonPrefab.prefab` | Generated illustrative skeleton OBJ with rotate, zoom, reset, tap/explanation, and organ identity components. |
+| `Assets/Prefabs/NeuronPrefab.prefab` | Neuron model prefab with interaction controls and organ identity. Verify the imported mesh/materials on device when changing its source asset. |
+| `Assets/Prefabs/FemaleReproductiveSystemPrefab.prefab` | Female reproductive system model prefab with interaction controls, organ identity, and hotspot label support. |
 | `Assets/Models/Heart/` | Heart FBX and its texture assets. |
 | `Assets/Models/Brain/source/Rotten Brain.glb` | Imported Brain GLB model. Its extracted textures are under `Assets/Models/Brain/textures/`. |
 | `Assets/Models/Eye/` | Active Eye GLB under `Replacement/`; its base-color texture is embedded in the model. |
 | `Assets/Models/Lung/` | Lung FBX under `source/` and its textures under `textures/`. |
+| `Assets/Models/Kidney/kidney/` | Kidney FBX under `source/`, with its diffuse/normal textures and materials under `textures/` and `Materials/`. |
+| `Assets/Models/Skeleton/source/` | Generated `Skeleton.obj` and `Skeleton.mtl` plus Python regeneration scripts. The mesh is a stylized teaching prototype, not medically validated anatomy. |
+| `Assets/Models/Female_Reproductive_system/` | Female reproductive system GLB source used by `FemaleReproductiveSystemPrefab`. |
+| `Assets/Skeleton.png` | Generated Skeleton image target used by the XR Reference Image Library. Print/display it at 0.20 m × 0.2333 m to match its configured physical size. |
 | `Assets/Brain.png` | Brain tracking/reference image currently used by `MyImages.asset`. |
 | `Assets/Eye.png` | Eye tracking/reference image currently used by `MyImages.asset`. |
 | `Assets/Lung.png` | Lung tracking/reference image used by `MyImages.asset`. Its physical size is unspecified so ARCore can estimate it. |
-| `Assets/Scripts/` | AR tracking, model interactions, labels, UI overlays, chat, explanation, voice input, and support scripts. |
+| `Assets/Scripts/` | AR tracking, model interactions, numbered anatomy hotspots, UI overlays, chat, explanation, voice input, and support scripts. |
 | `Packages/com.unity.cloud.gltfast/` | Embedded copy of glTFast 6.14.1 with one GLES3 shader include correction. The manifest points to this local package. |
 
 Unity `.meta` files contain asset GUIDs referenced by scenes, prefabs, and libraries. Keep them alongside their assets and avoid deleting/recreating them when moving files.
@@ -40,26 +50,28 @@ Unity `.meta` files contain asset GUIDs referenced by scenes, prefabs, and libra
 1. `ARTrackedImageManager` in `SampleScene` uses `Assets/MyImages.asset`.
 2. AR Foundation reports the **Name** assigned to the tracked reference image.
 3. `TrackedImageSpawner` looks for an exact, case-sensitive `imageName` match in its `imagePrefabs` list.
-4. If there is no exact entry, the current legacy fallback returns the **first configured prefab**. That fallback is not organ recognition and can show the wrong organ. Add an explicit mapping for each organ marker.
+4. `TrackedImageSpawner` uses an exact, case-sensitive mapping when one exists. An exact entry with an empty prefab intentionally spawns nothing; only an image with no mapping at all uses the legacy first-prefab fallback. This lets a marker be registered before its model is ready without showing the wrong organ.
 5. When a model is spawned, the spawner parents it to the tracked image and sets the prefab root's local scale to `(1,1,1)`. It repeats this reset when unlocking/re-attaching a model.
 
 **Important distinction:** the app tracks images that have been added to `MyImages.asset`; it does not currently recognize an arbitrary image from the camera or determine that an unknown picture is a heart. The earlier idea to ask the user to spell a name for an unmatched image, then associate that image with a model/library entry, has not been implemented. Runtime creation/updating of image targets is not part of the current workflow.
 
 ## Existing app behavior
 
-- **Image-to-organ display:** `TrackedImageSpawner.cs` maintains tracked image references and spawned models. `SampleScene` maps `Heart` to `HeartPrefab` and `Brain` to `BrainPrefab`.
+- **Image-to-organ display:** `TrackedImageSpawner.cs` maintains tracked image references and spawned models. `SampleScene` maps `Heart`, `Brain`, `Eye`, `Lung`, `Kidney`, `Skeleton`, `Neuron`, and `Female_Reproductive_system` to their matching prefabs.
 - **Touch rotation:** `TouchRotate.cs` rotates the organ on one-finger drags. Horizontal screen swipes drive world-Y rotation and vertical swipes drive world-X rotation consistently in portrait and landscape. World axes keep these gestures consistent even when an organ mesh/controller has a custom authored starting orientation.
 - **Pinch zoom:** `PinchZoom.cs` scales the controller object on two-finger pinches. Its current default limits are 0.5–2.0 times that object's authored scale.
 - **Reset:** `ResetHeart.cs` restores the controller's starting local scale and rotation. The class name is historical; it is used on the Brain prefab too. The global UI bridge `ResetButtonController.cs` finds a `ResetHeart` in the scene.
 - **Tap for explanation:** `HeartTapDetector.cs` detects a short tap on the organ collider and opens the explanation panel. A tap on a label is treated as label selection instead.
 - **Organ context:** `ModelInfo.cs` exposes `ActiveModel` and the `organName`. Chat and explanation prompts use this name, so adding a correctly configured `ModelInfo` lets the shared UI discuss that organ without a separate organ-specific prompt.
-- **Heart labels:** `BillboardLabel.cs`, `LabelSelectionInteraction.cs`, and `LabelToggleController.cs` provide screen-facing text, leader lines, selectable labels, and the label visibility mode. These are authored in the Heart prefab. Brain currently has no authored anatomical labels.
+- **Numbered labels:** `AnatomyHotspotOverlay.cs` creates screen-space numbered pins and tap-to-open information cards for supported organs, including the Female reproductive system. The `Labels` menu button toggles pins; tapping one opens its anatomy name and description. Per-organ hotspot data is in `BuildOrganHotspots()` and uses normalized positions within each model's renderer bounds. Adjust positions there after viewing the model in Unity/device. `LabelTogglerController.cs`, `LabelsToggleButtonBridge.cs`, and `MenuToggle.cs` coordinate the toggle.
 - **Heartbeat:** `HeartbeatAnimator.cs` can pulse the Heart; the Heart prefab currently starts with `isBeating` off. Do not add this behavior to other organs unless it makes sense for them.
 - **Fix/Unlock:** `TrackedImageSpawner.ToggleLock()` detaches the current visible model from its image and adds `ScreenLockFollower.cs` so it remains in front of the camera. Unlock reparents it to the tracked image. The follower corrects for the rendered model bounds and smooths camera position movement.
 - **Overlays:** menu, labels, explanation, and chat cooperate to close other modes when one opens. See `MenuToggle.cs`, `LabelToggleController.cs`, `ChatbotController.cs`, and `ExplanationPanelController.cs` when changing overlay behavior.
-- **Contextual touch menu:** the menu opens from a larger bottom-left launcher and lays out larger action buttons in a compact drawer. The `Beat` item is visible only when the active model has `HeartbeatAnimator`; `Labels` is visible only when it has `LabelToggleController`. The Reset control is outside the drawer, at the bottom beside Fix, so opening the menu cannot cover it. Layout sizes are applied by `MenuToggle.cs` against the Canvas scaler, so edit its constants if adapting the menu for a different screen design.
+- **Contextual touch menu and assistant:** the menu opens from a larger bottom-left launcher and lays out actions in a compact drawer. `Beat` appears only for models with `HeartbeatAnimator`, and `Labels` is contextual to supported models. Reset remains beside Fix at the bottom. Chat and Voice are separate icon buttons under a draggable robot widget; its position is saved with `PlayerPrefs`, and it makes a gentle wave motion at intervals. `MenuToggle.cs`, `AssistantWidgetDragHandler.cs`, and `AssistantRobotIdleAnimation.cs` create and control it at runtime. Voice records on the first tap, stops on the next, then opens Chat with the recognized transcript.
 - **AI chat and explanation:** the scripts send requests to OpenAI's Chat Completions endpoint; chat uses organ context and explanation requests a short student-friendly explanation.
+- **Chat panel layout:** `ChatbotController.ConfigureChatLayout()` expands the existing `ChatPanel` to most of the display when chat opens and resizes its scroll area, message text, input, Send button, and close control. It reuses the scene's existing UI objects, creating only the header if missing. If the chat UI is changed in the scene, confirm its immediate child names still match `ChatScrollView`, `ChatInputField`, and `SendButton`.
 - **Voice input:** `VoiceInputController.cs` records microphone audio, requests Android microphone permission, transcribes through Whisper, and places the transcript into chat.
+- **Onboarding:** `WelcomeScreenController.cs` creates the AnatoLens welcome UI at runtime on every app launch. It shows a short splash, a welcome/get-started page, then instructions with a back arrow and a Start Scanning button. AR sessions and image tracking stay disabled until the user starts scanning. The UI is generated in code; it is not a serialized Canvas under `SampleScene`.
 - **Camera configuration:** `ARCameraConfigSelector.cs` chooses the lowest available camera configuration once after receiving a frame.
 - **AnchorStabilizer:** this script exists in `Assets/Scripts/`, but there is no current scene or prefab reference to it. It is not part of the active tracking/locking flow. Locking currently uses `ScreenLockFollower`.
 
@@ -69,7 +81,7 @@ Use this checklist for a new organ such as Lung or Kidney.
 
 ### 1. Add the model asset
 
-1. Put the source model and its texture files in a clear folder, for example `Assets/Models/Lung/source/` and `Assets/Models/Lung/textures/`.
+1. Put the model in its own folder under `Assets/Models/`, for example `Assets/Models/Lung/`. Separate `source/` and `textures/` subfolders are optional; keep external texture files beside the model or in a clearly named subfolder so the importer can find them.
 2. Import the model in Unity. Check its materials and textures in the Inspector; make sure the model is visible and the materials render on Android.
 3. Preserve the original files and their `.meta` files. Do not place the only copy inside `Library/` or `Temp/`.
 
@@ -81,7 +93,7 @@ Use this checklist for a new organ such as Lung or Kidney.
 4. Ensure the mesh has a collider so touch raycasts can hit it. A `BoxCollider` is sufficient for simple models; use a better-fitting collider if the box causes inaccurate taps.
 5. **Scale the mesh child, not only the prefab root.** The spawner resets the prefab root to scale one. The Brain GLB imported at roughly 76 × 85 × 99 Unity units, so its mesh child is set to `(0.0015, 0.0015, 0.0015)`, giving a rendered size around 11.4 × 12.8 × 14.9 cm before pinch zoom. Use measured model bounds and choose a suitable real-world AR size for each new model. Keep scale uniform unless distortion is intended.
 6. Keep `PinchZoom` and `ResetHeart` on the controller parent so pinch/reset changes the organ as a whole. If changing the controller's starting scale, update the `PinchZoom` min/max values accordingly; its current limits are absolute local-scale values, not multipliers of the imported mesh scale.
-7. If the new organ needs labels, author label anchor objects and text under a `Labels` container using the same pattern as `HeartPrefab`. On Brain, add `Labels` as a child of `BrainModel` and as a **sibling** of the scaled `Brain` mesh. This keeps anchor positions out of the mesh's small `(0.0015)` scale. Add one empty anchor GameObject per anatomical label under `Labels`, position each anchor at the matching organ part in the prefab, then add the `BillboardLabel` component to each anchor and set its label text. Add `LabelToggleController` to `BrainModel`, assign its `labelsContainer` field to `Labels`, and leave the container inactive initially. `MenuToggle` will then show the Labels action for Brain. The current Brain prefab does not yet have these label objects.
+7. The spawner attaches `AnatomyHotspotOverlay` automatically to mapped tracked models. Add the new organ's numbered hotspot definitions and short descriptions to `BuildOrganHotspots()` in `AnatomyHotspotOverlay.cs`, keyed by the exact marker name. Positions are normalized to the renderer bounds (roughly -1 to +1); inspect and tune them for the actual model orientation. Do not add the legacy `BillboardLabel` objects for new organs.
 8. Do not add `HeartbeatAnimator` by default. Add it only if the organ needs a pulse effect and expose an appropriate UI control.
 
 ### 3. Add its tracking image
@@ -125,7 +137,13 @@ Use the same name as the reference image. Add an explicit entry rather than rely
 | Eye prefab contents | `EyePrefab` → `EyeModel` (rotate/zoom/reset/tap, BoxCollider, and `ModelInfo` set to `Eye`) → imported `eye.glb` model (`EyeReplacement`). The model is uniformly scaled to about 12 cm on its longest axis and turned 180° around local X so its front faces the screen. It has no anatomical labels or heartbeat animation yet. |
 | Lung marker and model | `Assets/Lung.png` is registered as `Lung` with unspecified physical size. `Assets/Models/Lung/source/Lung_with_Holes_Final.fbx` supplies the model; the prefab scales its longest dimension to about 18 cm and centers it. Test the model's orientation and size in AR on the device. |
 | Lung prefab contents | `LungPrefab` → `LungModel` (rotate/zoom/reset/tap, fitted BoxCollider, and `ModelInfo` set to `Lung`) → imported `Lung` FBX hierarchy. It has no labels or heartbeat animation yet. |
-| Sample scene mapping | `Heart` → `HeartPrefab`; `Brain` → `BrainPrefab`; `Eye` → `EyePrefab`; `Lung` → `LungPrefab`. |
+| Kidney marker and model | `Assets/Kidney.jpg` is registered as `Kidney` at 0.20 × 0.20 m. The model source is `Assets/Models/Kidney/kidney/source/kidney.fbx`; its renderer bounds are fitted uniformly to a 16 cm longest dimension and centered in the prefab. Diffuse textures are assigned to the matching materials; cortex and capsule materials use a soft warm tissue tint. Confirm appearance, orientation, and physical size on an Android device. |
+| Kidney prefab contents | `KidneyPrefab` → `KidneyModel` (rotate/zoom/reset/tap, fitted BoxCollider, and `ModelInfo` set to `Kidney`) → imported Kidney FBX hierarchy. It has no labels or heartbeat animation yet. |
+| Skeleton marker and model | `Assets/Skeleton.png` is generated from the project OBJ as a front-view image target named `Skeleton`, specified at 0.20 × 0.233333 m. `Assets/Models/Skeleton/source/generate_skeleton.py` regenerates the OBJ and MTL. The mesh uses metres, is 1.73 m tall at source scale, and is uniformly scaled to 0.25 in the prefab (about 43 cm tall). This is a stylized procedural prototype, not an anatomically validated or high-detail model. `generate_skeleton_marker.py` regenerates the target graphic. |
+| Skeleton prefab contents | `SkeletonPrefab` → scaled imported `Skeleton.obj` hierarchy; the root has rotate/zoom/reset/tap, a fitted BoxCollider, and `ModelInfo` set to `Skeleton`. `BuildSkeletonPrefab.cs` creates/updates the prefab, reference-library entry, and scene mapping. |
+| Neuron marker and model | `Assets/Neuron.png` is registered as `Neuron`; its prefab is `Assets/Prefabs/NeuronPrefab.prefab`. The source folder contains GLB and 3ds Max assets. If replacing the source, update the prefab to reference the intended imported model and confirm its materials and hotspot positions on device. |
+| Female reproductive system marker and model | `Assets/Female_Reproductive_system.png` is registered as `Female_Reproductive_system`, sized 0.20 × 0.16 m. The GLB is under `Assets/Models/Female_Reproductive_system/`; `Assets/Prefabs/FemaleReproductiveSystemPrefab.prefab` is assigned in the scene and has hotspot content in `AnatomyHotspotOverlay.cs`. Check orientation and pin placement on device after model changes. |
+| Sample scene mapping | `Heart` → `HeartPrefab`; `Brain` → `BrainPrefab`; `Eye` → `EyePrefab`; `Lung` → `LungPrefab`; `Kidney` → `KidneyPrefab`; `Skeleton` → `SkeletonPrefab`; `Neuron` → `NeuronPrefab`; `Female_Reproductive_system` → `FemaleReproductiveSystemPrefab`. |
 
 Eye model attribution: “Eye” by germydan, [Sketchfab source](https://sketchfab.com/3d-models/eye-07c3674cfc26460d803f8f497f8c0f35), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The mesh is unchanged; it is uniformly scaled for AR display.
 
@@ -147,13 +165,14 @@ The shader source fix is committed, but an Android build after the correction st
 
 - The app does **not** currently classify arbitrary camera images as hearts or organs. Only images preconfigured in `MyImages.asset` can be tracked.
 - The proposed “unmatched image → ask user to spell/name it → bind that image to an organ and save it” flow is a future feature, not implemented. Design it as a separate workflow; do not confuse a spelled word match with image recognition. Investigate AR Foundation's runtime/mutable reference-image support for the target ARCore version before promising permanent runtime library updates.
-- The first-prefab fallback in `TrackedImageSpawner` can display the wrong organ for a configured image that lacks an explicit mapping. Add explicit mappings and consider replacing this fallback with a warning/no-spawn behavior as part of future hardening.
+- Unconfigured marker names still use the legacy first-prefab fallback. Add exact entries for new targets; use an explicit empty prefab entry when a marker is ready before its model.
 - Heart anatomical labels are authored only for the Heart model. Brain has no label anchors/content yet.
 - `ModelInfo.ActiveModel` and the reset UI use a single active/global lookup. If the product needs multiple organs visible and independently controllable at the same time, revisit how UI actions choose their target model.
-- The chat, explanation, and voice scripts expose API-key fields and currently use placeholder strings. Never commit a real OpenAI key in scripts, scenes, or prefabs, and do not ship a client-embedded secret in a public Android app. A server-side proxy/key-management design is needed before public release.
+- Chat, explanation, and voice use separate Inspector API-key fields on `ChatPanel`, `ExplanationPanel`, and `MicButton` in `SampleScene`. All three integrations call OpenAI directly: chat/explanation use `https://api.openai.com/v1/chat/completions` with `gpt-4o-mini`; transcription uses `https://api.openai.com/v1/audio/transcriptions` with `whisper-1`. The value must be an active OpenAI API key, not a key issued by another AI service. Current guards check for an OpenAI-style key shape and display a setup hint when that check fails; a passing shape check does not prove the key is active, has billing, or has API access. Never put a real key in scripts, scenes, prefabs, Git, or a distributed Android APK. The scene serializes Inspector values into project files and client builds expose embedded secrets. Rotate any key that has been included in a shared build/repository; move requests behind a server-side proxy before public release. Do not put a real key in this handoff document.
+- The chat/API key values in the present scene did not match the format expected by the OpenAI endpoints during the latest local inspection, so the three AI features need an active OpenAI key before successful live requests can be expected. No key was sent to OpenAI as part of this inspection.
 - Brain size and tracking have not yet been verified on a physical device after the latest scale/reference-image edits.
 - `Assets/ARapp.unity` and `Assets/Scenes/SampleScene.unity` are separate scenes with different spawner setup. Build Settings currently selects only `SampleScene`.
 
 ## Recent development milestones
 
-The branch history shows the project evolving from initial AR setup through pinch zoom/reset and touch rotation, then adding model locking/stability, menu and heartbeat behavior, readable/selectable heart labels, coordinated overlays, and finally the Brain prefab, Brain reference image, Android glTFast shader correction, and a larger organ-aware menu. Review `git log --oneline` for the exact commit history. This handoff describes the current checkout; check the active branch and Unity Editor state before making follow-up changes.
+The branch history shows the project evolving from initial AR setup through pinch zoom/reset and touch rotation, then adding model locking/stability, menu and heartbeat behavior, the Brain/Eye/Lung/Kidney organs, Android glTFast shader correction, AnatoLens onboarding, API-key diagnostics, and a larger chat panel. The current checkout adds a shared numbered hotspot/card label system and a generated illustrative skeleton with its own marker image. Review `git status` before staging: this work may not yet be committed or pushed. Review `git log --oneline` for commit history.

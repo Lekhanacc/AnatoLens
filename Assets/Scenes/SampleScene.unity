@@ -470,7 +470,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   panelRoot: {fileID: 149203042}
   explanationText: {fileID: 1246316783}
-  apiKey: YOUR_API_KEY_HERE
+  apiKey: REDACTED_GOOGLE_API_KEY_ID
 --- !u!114 &149203045
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1170,6 +1170,14 @@ MonoBehaviour:
     prefab: {fileID: 5667250002636836855, guid: e615e24223e1276488ef30beb4ba1306, type: 3}
   - imageName: Lung
     prefab: {fileID: 5749031943692034715, guid: 20b5f1518f147ea448187e10c62e9b8e, type: 3}
+  - imageName: Kidney
+    prefab: {fileID: 5009363985889193690, guid: 942ebdf9580acbf449c1be15b8d1923f, type: 3}
+  - imageName: Skeleton
+    prefab: {fileID: 5934225901316129276, guid: 0262288e6a4163345a30f1056954f592, type: 3}
+  - imageName: Neuron
+    prefab: {fileID: 9191515104569167329, guid: 0633949b1509476439c43d8a39678d5c, type: 3}
+  - imageName: Female_Reproductive_system
+    prefab: {fileID: 588441262182873442, guid: 586c198d54568414594153769b354445, type: 3}
 --- !u!114 &254885135
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1307,7 +1315,7 @@ MonoBehaviour:
   panelRoot: {fileID: 331940579}
   chatHistoryText: {fileID: 782081604}
   inputField: {fileID: 173668040}
-  apiKey: YOUR_API_KEY_HERE
+  apiKey: REDACTED_GOOGLE_API_KEY_ID
 --- !u!224 &331940581
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3660,7 +3668,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   chatbot: {fileID: 331940580}
   micButtonLabel: {fileID: 1654130856}
-  apiKey: YOUR_API_KEY_HERE
+  apiKey: REDACTED_GOOGLE_API_KEY_ID
 --- !u!114 &1567300517
 MonoBehaviour:
   m_ObjectHideFlags: 0

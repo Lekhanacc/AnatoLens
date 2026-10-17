@@ -34,6 +34,11 @@ public class ExplanationPanelController : MonoBehaviour
         ChatbotController.CloseOpenChat();
         MenuToggle.CloseOpenMenu();
         panelRoot.SetActive(true);
+        if (!HasOpenAIKey())
+        {
+            explanationText.text = "Add a valid OpenAI API key in the ChatPanel, ExplanationPanel, and MicButton settings.";
+            return;
+        }
         explanationText.text = "Thinking...";
         StartCoroutine(FetchExplanation());
     }
@@ -70,7 +75,7 @@ public class ExplanationPanelController : MonoBehaviour
             request.uploadHandler = new UploadHandlerRaw(bodyRaw);
             request.downloadHandler = new DownloadHandlerBuffer();
             request.SetRequestHeader("Content-Type", "application/json");
-            request.SetRequestHeader("Authorization", "Bearer " + apiKey);
+            request.SetRequestHeader("Authorization", "Bearer " + apiKey.Trim());
 
             yield return request.SendWebRequest();
 
@@ -87,6 +92,12 @@ public class ExplanationPanelController : MonoBehaviour
         }
 
         isLoading = false;
+    }
+
+    private bool HasOpenAIKey()
+    {
+        string key = apiKey != null ? apiKey.Trim() : "";
+        return key.StartsWith("sk-") && key.Length > 20;
     }
 
     // Minimal manual JSON parsing to avoid pulling in a dependency for one field.
