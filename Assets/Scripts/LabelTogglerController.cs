@@ -46,6 +46,7 @@ public class LabelToggleController : MonoBehaviour
 
     public static void HideOpenLabels()
     {
+        AnatomyHotspotOverlay.HideActive();
         if (Instance != null)
             Instance.HideLabels();
     }

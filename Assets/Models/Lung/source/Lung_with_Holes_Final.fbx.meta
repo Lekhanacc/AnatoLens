@@ -3,7 +3,22 @@ guid: 34ffa4103f3551c40a1b745edd209c7d
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Male_Anatomy_Pack_Complete_V05_Male_Respiratory_System_V05_Respiratory_Cricothyroid_Ligament_mat
+    second: {fileID: 2100000, guid: 177814af946031849a938e5c184cfd63, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Male_Anatomy_Pack_Complete_V05_Male_Respiratory_System_V05_Respiratoy_Bronchi_mat
+    second: {fileID: 2100000, guid: 150a4dc06894e7a4ea0d22ee321221b5, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Male_Anatomy_Pack_Complete_V05_Male_Respiratory_System_V05_Respiratoy_Lung_mat
+    second: {fileID: 2100000, guid: a53e7e3d88af9de4ba6878f3d249f64c, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

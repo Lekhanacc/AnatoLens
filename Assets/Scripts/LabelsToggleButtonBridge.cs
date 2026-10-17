@@ -4,13 +4,17 @@ public class LabelsToggleButtonBridge : MonoBehaviour
 {
     public void OnToggleLabelsPressed()
     {
-        if (LabelToggleController.Instance != null)
+        if (AnatomyHotspotOverlay.Active != null)
+        {
+            AnatomyHotspotOverlay.ToggleActive();
+        }
+        else if (LabelToggleController.Instance != null)
         {
             LabelToggleController.Instance.ToggleLabels();
         }
         else
         {
-            Debug.Log("[Labels] No heart model spawned yet — scan the marker first.");
+            Debug.Log("[Labels] Scan an anatomy image first.");
         }
     }
 }
