@@ -14,6 +14,9 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         public string description;
         public Vector3 normalizedPosition;
         public Transform anchorTransform;
+        public Transform occlusionTarget;
+        public bool lockAnchorLocalPosition;
+        public Vector3 lockedAnchorLocalPosition;
         public Vector3 explicitLocalPosition;
         public bool hasExplicitLocalPosition;
         public RectTransform pin;
@@ -28,6 +31,8 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
     public bool HasHotspots => hotspots != null && hotspots.Count > 0;
 
     private readonly List<Hotspot> hotspots = new List<Hotspot>();
+    private readonly List<MeshCollider> femaleVisibilityColliders = new List<MeshCollider>();
+    private readonly RaycastHit[] visibilityRayHits = new RaycastHit[64];
     private Camera arCamera;
     private Canvas canvas;
     private RectTransform canvasRect;
@@ -59,9 +64,16 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
     // that camera creates a smooth, per-label orbit and zoom while preserving AR.
     private const float FocusDistance = 0.48f;
     private const float FocusZoom = 2.65f;
+    private const float OvariesFocusZoom = 2.9f;
+    private const float FimbriaeFocusZoom = 3.25f;
+    private const float UterineTubesFocusZoom = 2.9f;
+    private const float UterusFocusZoom = 3.2f;
+    private const float BladderFocusZoom = 3.45f;
+    private const float RectumFocusZoom = 3.4f;
     private const float FocusDuration = 0.7f;
     private const float CardWidth = 620f;
     private const float CardHeight = 460f;
+    private const float FimbriaeCardWidth = 360f;
 
     private void OnEnable()
     {
@@ -73,6 +85,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
     {
         organKey = key;
         CreateHotspots();
+        CreateFemaleVisibilityColliders();
         CreateOverlay();
         if (HasHotspots)
         {
@@ -95,6 +108,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             hasBasePose = false;
         }
         SetScreenLockPositionPaused(false);
+        SetFemaleVisibilityCollidersEnabled(false);
         if (canvas != null)
             canvas.gameObject.SetActive(false);
         visible = false;
@@ -106,6 +120,10 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
     {
         if (canvas != null)
             Destroy(canvas.gameObject);
+        foreach (MeshCollider visibilityCollider in femaleVisibilityColliders)
+            if (visibilityCollider != null)
+                Destroy(visibilityCollider.gameObject);
+        femaleVisibilityColliders.Clear();
         if (Active == this)
             Active = null;
     }
@@ -119,22 +137,89 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         if (arCamera == null)
             return;
 
+        if (HasFemaleOcclusionTargets())
+            Physics.SyncTransforms();
+
+        bool ovariesPinVisible = false;
         for (int i = 0; i < hotspots.Count; i++)
         {
+            // The uterus anchor shares a combined uterus/vagina mesh. Hide only
+            // its pin during the vagina focus so it cannot appear over label 8.
+            if (i == 3 && selectedIndex == 7)
+            {
+                hotspots[i].pin.gameObject.SetActive(false);
+                continue;
+            }
+
+            if (IsHiddenFemaleLabel(hotspots[i]))
+            {
+                hotspots[i].pin.gameObject.SetActive(false);
+                continue;
+            }
+
             Vector3 localPoint = HotspotLocalPoint(hotspots[i]);
             Vector3 screen = arCamera.WorldToScreenPoint(transform.TransformPoint(localPoint));
             bool onScreen = screen.z > 0f && screen.x >= 0f && screen.x <= Screen.width &&
                             screen.y >= 0f && screen.y <= Screen.height;
-            if (onScreen && IsFemaleSurfaceHotspot(hotspots[i]))
+            bool selectedFixedPin = i == selectedIndex &&
+                (string.Equals(hotspots[i].title, "Rectum", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(hotspots[i].title, "Vagina", StringComparison.OrdinalIgnoreCase));
+            if (onScreen && IsFemaleSurfaceHotspot(hotspots[i]) && !selectedFixedPin)
             {
-                Vector3 toCamera = arCamera.transform.position - hotspots[i].anchorTransform.position;
-                onScreen = toCamera.sqrMagnitude > 0.000001f &&
-                    Vector3.Dot(hotspots[i].anchorTransform.forward, toCamera.normalized) > 0f;
+                if (string.Equals(hotspots[i].title, "Fimbriae", StringComparison.OrdinalIgnoreCase))
+                    onScreen = ovariesPinVisible;
+                else if (string.Equals(hotspots[i].title, "Anus", StringComparison.OrdinalIgnoreCase))
+                    onScreen = hotspots[i].occlusionTarget != null
+                        ? IsHotspotSurfaceVisible(hotspots[i])
+                        : IsHotspotFacingCamera(hotspots[i]);
+                else if (string.Equals(hotspots[i].title, "Vagina", StringComparison.OrdinalIgnoreCase))
+                    onScreen = hotspots[i].occlusionTarget != null
+                        ? IsHotspotSurfaceVisible(hotspots[i]) || IsHotspotFacingCamera(hotspots[i])
+                        : IsHotspotFacingCamera(hotspots[i]);
+                else if (string.Equals(hotspots[i].title, "Uterus", StringComparison.OrdinalIgnoreCase))
+                    onScreen = hotspots[i].occlusionTarget != null
+                        ? IsHotspotSurfaceVisible(hotspots[i])
+                        : IsHotspotFacingCamera(hotspots[i]);
+                else if (string.Equals(hotspots[i].title, "Rectum", StringComparison.OrdinalIgnoreCase))
+                    onScreen = IsHotspotSurfaceVisible(hotspots[i]);
+                else
+                    onScreen = hotspots[i].occlusionTarget != null
+                        ? IsHotspotSurfaceVisible(hotspots[i])
+                        : IsHotspotFacingCamera(hotspots[i]);
             }
+            if (string.Equals(hotspots[i].title, "Ovaries", StringComparison.OrdinalIgnoreCase))
+                ovariesPinVisible = onScreen;
             hotspots[i].pin.gameObject.SetActive(onScreen);
-            if (onScreen && RectTransformUtility.ScreenPointToLocalPointInRectangle(
+        }
+    }
+
+    private void LateUpdate()
+    {
+        if (!visible || canvas == null || canvasRect == null)
+            return;
+        if (arCamera == null)
+            arCamera = Camera.main;
+        if (arCamera == null)
+            return;
+
+        // Project every pin after tracked camera/model transforms settle. Writing
+        // screen positions in both Update and LateUpdate makes the pins visibly jitter.
+        for (int i = 0; i < hotspots.Count; i++)
+        {
+            Hotspot hotspot = hotspots[i];
+            if (hotspot.pin == null || !hotspot.pin.gameObject.activeSelf)
+                continue;
+
+            Vector3 screen = arCamera.WorldToScreenPoint(
+                transform.TransformPoint(HotspotLocalPoint(hotspot)));
+            if (screen.z <= 0f ||
+                !RectTransformUtility.ScreenPointToLocalPointInRectangle(
                     canvasRect, screen, null, out Vector2 local))
-                hotspots[i].pin.anchoredPosition = local;
+                continue;
+
+            hotspot.pin.anchoredPosition = local;
+            if (selectedIndex == i && card != null && card.activeSelf)
+                PositionInfoCard(local);
         }
 
         if (selectedIndex >= 0 && selectedIndex < hotspots.Count &&
@@ -173,6 +258,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             femaleSurfaceNormalsInitialized = true;
         }
         visible = true;
+        SetFemaleVisibilityCollidersEnabled(true);
         selectedIndex = -1;
         card.SetActive(false);
         canvas.gameObject.SetActive(true);
@@ -183,6 +269,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
     {
         visible = false;
         selectedIndex = -1;
+        SetFemaleVisibilityCollidersEnabled(false);
         if (focusTransition != null)
             StopCoroutine(focusTransition);
         focusTransition = null;
@@ -239,50 +326,170 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         {
             Hotspot definition = definitions[i];
             Transform anchor = FindHeartAnchor(definition.title);
+            Transform occlusionTarget = null;
             if (anchor == null && string.Equals(organKey, "Female_Reproductive_system",
                     StringComparison.OrdinalIgnoreCase))
                 anchor = FindFemaleLabelAnchor(i + 1);
+            if (anchor == null && string.Equals(organKey, "Female_Reproductive_system",
+                    StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(definition.title, "Rectum", StringComparison.OrdinalIgnoreCase))
+            {
+                anchor = new GameObject("LabelAnchor_Rectum").transform;
+                anchor.SetParent(transform, false);
+            }
             if (anchor != null && string.Equals(organKey,
                     "Female_Reproductive_system", StringComparison.OrdinalIgnoreCase))
             {
                 if (i == 0)
+                {
                     AttachFemaleSurfaceAnchor(anchor, "Ovaries_Edit_Ovaries_M_0",
-                        0.5f, 0.5f, 0.85f);
+                        0.5f, 0.5f, 0.77f);
+                    if (anchor.parent != null && anchor.parent.name.IndexOf(
+                            "Ovaries_Edit_Ovaries_M_0", StringComparison.OrdinalIgnoreCase) >= 0)
+                        occlusionTarget = anchor.parent;
+                }
                 else if (i == 1)
+                {
+                    // Keep label 2's existing focus angle while moving only
+                    // its surface position to the fimbrial fringe.
                     AttachFemaleSurfaceAnchor(anchor, "Fallopian_Edits_Ovaries_M_0",
                         0.25f, 0.3f, 0.85f);
-                else if (i == 2)
+                    Quaternion existingFocusRotation = anchor.localRotation;
                     AttachFemaleSurfaceAnchor(anchor, "Fallopian_Edits_Ovaries_M_0",
-                        0.25f, 0.3f, 0.15f);
-                else if (i == 3)
-                    AttachFemaleSurfaceAnchor(anchor, "UterusVagina_Ovaries_M_0",
-                        0.25f, 0.8f, 0.5f);
-                else if (i == 4)
+                        0.95f, 0f, 0.84f);
+                    anchor.localRotation = existingFocusRotation;
+                    occlusionTarget = anchor.parent;
+                }
+                else if (i == 2)
+                {
                     AttachFemaleSurfaceAnchor(anchor,
-                        "Uterus_CutAway_FNL_Uterus_and_vagina", 0.5f, 0.55f, 0.6f);
+                        "Fallopian_Edits_Ovaries_M_0", 0.25f, 0.3f, 0.15f);
+                    if (anchor.parent != null && anchor.parent.name.IndexOf(
+                            "Fallopian_Edits_Ovaries_M_0", StringComparison.OrdinalIgnoreCase) >= 0)
+                        occlusionTarget = anchor.parent;
+                }
+                else if (i == 3)
+                {
+                    // Use the existing model-space point, then attach to the
+                    // nearest uterine surface vertex like the other surface pins.
+                    AttachFemaleSurfaceAnchorToCurrentPosition(anchor,
+                        "UterusVagina_Ovaries_M_0", Vector3.zero);
+                    if (anchor.parent != null && anchor.parent.name.IndexOf(
+                            "UterusVagina_Ovaries_M_0", StringComparison.OrdinalIgnoreCase) >= 0)
+                        occlusionTarget = anchor.parent;
+                }
+                else if (i == 4)
+                {
+                    // Place label 5 at the midline center of the puboanalis
+                    // (levator ani) mesh, at the described pelvic-floor opening.
+                    AttachFemaleSurfaceAnchor(anchor,
+                        "Puboanalis_MUSCLES_0", 0.5f, 0.5f, 0.5f);
+                    if (anchor.parent != null && anchor.parent.name.IndexOf(
+                            "Puboanalis_MUSCLES_0",
+                            StringComparison.OrdinalIgnoreCase) >= 0)
+                        occlusionTarget = anchor.parent;
+                }
                 else if (i == 5)
-                    AttachFemaleSurfaceAnchor(anchor, "UterusVagina_Ovaries_M_0",
-                        0.5f, 0.55f, 0.8f);
+                {
+                    // Label 6 targets the bladder's inner anterior wall, just
+                    // superior/anterior to the uterus and below the pubic symphysis.
+                    AttachFemaleSurfaceAnchor(anchor,
+                        "Bladder_1_Bladder_M_0", 0.12f, 0.55f, 0.5f);
+                    if (anchor.parent != null && anchor.parent.name.IndexOf(
+                            "Bladder_1_Bladder_M_0",
+                            StringComparison.OrdinalIgnoreCase) >= 0)
+                        occlusionTarget = anchor.parent;
+                }
                 else if (i == 6)
                     AttachFemaleSurfaceAnchor(anchor,
                         "Uterus_CutAway_FNL_Uterus_and_vagina", 0.5f, 0.32f, 0.5f);
                 else if (i == 7)
+                {
+                    // Start from the exact prefab-local point supplied by the user,
+                    // then snap it onto the vaginal opening so the pin cannot float.
+                    anchor.localPosition = new Vector3(-0.0115f, 0.0313f, 0.0477f);
+                    Quaternion authoredRotation = anchor.rotation;
+                    AttachFemaleSurfaceAnchorToCurrentPosition(anchor,
+                        "HymenalCaruncle_UrethralOrifice_Labia_minora_M_0", Vector3.zero);
+                    anchor.rotation = authoredRotation;
+                    if (anchor.parent != null && anchor.parent.name.IndexOf(
+                            "HymenalCaruncle_UrethralOrifice_Labia_minora_M_0",
+                            StringComparison.OrdinalIgnoreCase) >= 0)
+                        occlusionTarget = anchor.parent;
+                }
+                else if (string.Equals(definition.title, "Rectum", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Anchor at the cut end of the rectum mesh, where the user's
+                    // red mark indicates its exposed cross-section.
                     AttachFemaleSurfaceAnchor(anchor,
-                        "Uterus_CutAway_FNL_Uterus_and_vagina", 0.25f, 0.1f, 0.5f);
+                        "Merged_Colon_Rectum_Anus2_Large_intestine_M_0", 0.5f, 0.96f, 0.5f);
+                    if (anchor.parent != null && anchor.parent.name.IndexOf(
+                            "Merged_Colon_Rectum_Anus2_Large_intestine_M_0",
+                            StringComparison.OrdinalIgnoreCase) >= 0)
+                        occlusionTarget = anchor.parent;
+                }
             }
 
             Vector3 supplementalPosition = Vector3.zero;
             bool hasSupplementalAnchor = anchor == null &&
                 TryGetHeartSupplementalAnchor(definition.title, out supplementalPosition);
+            bool lockAnchorLocalPosition = anchor != null &&
+                string.Equals(organKey, "Female_Reproductive_system", StringComparison.OrdinalIgnoreCase) &&
+                (string.Equals(definition.title, "Uterus", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(definition.title, "Anus", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(definition.title, "Rectum", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(definition.title, "Vagina", StringComparison.OrdinalIgnoreCase));
             hotspots.Add(new Hotspot
             {
                 title = definition.title,
                 description = definition.description,
                 normalizedPosition = definition.normalizedPosition,
                 anchorTransform = anchor,
+                occlusionTarget = occlusionTarget,
+                lockAnchorLocalPosition = lockAnchorLocalPosition,
+                lockedAnchorLocalPosition = lockAnchorLocalPosition ? anchor.localPosition : Vector3.zero,
                 explicitLocalPosition = hasSupplementalAnchor ? supplementalPosition : Vector3.zero,
                 hasExplicitLocalPosition = hasSupplementalAnchor
             });
+        }
+
+        if (string.Equals(organKey, "Female_Reproductive_system", StringComparison.OrdinalIgnoreCase))
+        {
+            Hotspot uterus = null;
+            Hotspot rectum = null;
+            foreach (Hotspot hotspot in hotspots)
+            {
+                if (string.Equals(hotspot.title, "Uterus", StringComparison.OrdinalIgnoreCase))
+                    uterus = hotspot;
+                else if (string.Equals(hotspot.title, "Rectum", StringComparison.OrdinalIgnoreCase))
+                    rectum = hotspot;
+            }
+
+            // Keep label 4's snapped bulb point fixed in model-root space so
+            // mesh-child transforms cannot make the pin slide across the uterus.
+            if (uterus != null && uterus.anchorTransform != null)
+            {
+                Vector3 rootLocalPosition = transform.InverseTransformPoint(
+                    uterus.anchorTransform.position);
+                Quaternion rootLocalRotation = Quaternion.Inverse(transform.rotation) *
+                    uterus.anchorTransform.rotation;
+                uterus.anchorTransform.SetParent(transform, true);
+                uterus.anchorTransform.localPosition = rootLocalPosition;
+                uterus.anchorTransform.localRotation = rootLocalRotation;
+                uterus.lockedAnchorLocalPosition = rootLocalPosition;
+            }
+
+            if (rectum != null && rectum.anchorTransform != null)
+            {
+                Vector3 rootLocalPosition = transform.InverseTransformPoint(
+                    rectum.anchorTransform.position);
+                Quaternion rootLocalRotation = Quaternion.Inverse(transform.rotation) *
+                    rectum.anchorTransform.rotation;
+                rectum.anchorTransform.SetParent(transform, true);
+                rectum.anchorTransform.localPosition = rootLocalPosition;
+                rectum.anchorTransform.localRotation = rootLocalRotation;
+                rectum.lockedAnchorLocalPosition = rootLocalPosition;
+            }
         }
     }
 
@@ -371,10 +578,125 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         anchor.localScale = Vector3.one;
     }
 
+    private void AttachFemaleSurfaceAnchorToCurrentPosition(Transform anchor, string meshName,
+        Vector3 localOffset)
+    {
+        MeshFilter target = null;
+        MeshFilter[] meshFilters = GetComponentsInChildren<MeshFilter>(true);
+        foreach (MeshFilter filter in meshFilters)
+        {
+            if (filter.sharedMesh != null && filter.name.IndexOf(meshName,
+                    StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                target = filter;
+                break;
+            }
+        }
+
+        if (target == null)
+        {
+            Debug.LogWarning("[Labels] Could not find the reproductive-system mesh '" +
+                meshName + "'.");
+            return;
+        }
+
+        Vector3 targetLocalPosition = target.transform.InverseTransformPoint(anchor.position) + localOffset;
+        Bounds bounds = target.sharedMesh.bounds;
+        float lateralFraction = Mathf.InverseLerp(bounds.min.x, bounds.max.x, targetLocalPosition.x);
+        float depthFraction = Mathf.InverseLerp(bounds.min.y, bounds.max.y, targetLocalPosition.y);
+        float heightFraction = Mathf.InverseLerp(bounds.min.z, bounds.max.z, targetLocalPosition.z);
+        AttachFemaleSurfaceAnchor(anchor, meshName, lateralFraction, depthFraction, heightFraction);
+    }
+
     private bool IsFemaleSurfaceHotspot(Hotspot hotspot)
     {
         return hotspot != null && hotspot.anchorTransform != null &&
             string.Equals(organKey, "Female_Reproductive_system", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsHiddenFemaleLabel(Hotspot hotspot)
+    {
+        if (!string.Equals(organKey, "Female_Reproductive_system", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        return string.Equals(hotspot.title, "Endometrium", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(hotspot.title, "Myometrium", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(hotspot.title, "Cervix", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool IsHotspotFacingCamera(Hotspot hotspot)
+    {
+        Vector3 toCamera = arCamera.transform.position - hotspot.anchorTransform.position;
+        return toCamera.sqrMagnitude > 0.000001f &&
+            Vector3.Dot(hotspot.anchorTransform.forward, toCamera.normalized) > 0f;
+    }
+
+    private bool IsHotspotSurfaceVisible(Hotspot hotspot)
+    {
+        Vector3 surfacePoint = transform.TransformPoint(HotspotLocalPoint(hotspot));
+        Vector3 toAnchor = surfacePoint - arCamera.transform.position;
+        float distance = toAnchor.magnitude;
+        if (distance <= 0.0001f)
+            return false;
+
+        Ray ray = new Ray(arCamera.transform.position, toAnchor / distance);
+        int hitCount = Physics.RaycastNonAlloc(ray, visibilityRayHits, distance + 0.015f,
+            1 << 2, QueryTriggerInteraction.Ignore);
+        float nearestTargetHit = float.PositiveInfinity;
+        float nearestOccluderHit = float.PositiveInfinity;
+        for (int i = 0; i < hitCount; i++)
+        {
+            Collider hitCollider = visibilityRayHits[i].collider;
+            if (hitCollider == null)
+                continue;
+
+            if (hitCollider.transform.parent == hotspot.occlusionTarget)
+                nearestTargetHit = Mathf.Min(nearestTargetHit, visibilityRayHits[i].distance);
+            else
+                nearestOccluderHit = Mathf.Min(nearestOccluderHit, visibilityRayHits[i].distance);
+        }
+
+        float surfacePointTolerance = string.Equals(hotspot.title, "Uterus",
+            StringComparison.OrdinalIgnoreCase) ? 0.14f : 0.04f;
+        return !float.IsPositiveInfinity(nearestTargetHit) &&
+            nearestTargetHit <= nearestOccluderHit + 0.002f &&
+            Mathf.Abs(distance - nearestTargetHit) <= surfacePointTolerance;
+    }
+
+    private bool HasFemaleOcclusionTargets()
+    {
+        for (int i = 0; i < hotspots.Count; i++)
+            if (hotspots[i].occlusionTarget != null)
+                return true;
+        return false;
+    }
+
+    private void CreateFemaleVisibilityColliders()
+    {
+        if (!HasFemaleOcclusionTargets())
+            return;
+
+        MeshFilter[] meshFilters = GetComponentsInChildren<MeshFilter>(true);
+        foreach (MeshFilter filter in meshFilters)
+        {
+            if (filter.sharedMesh == null || filter.GetComponent<Renderer>() == null)
+                continue;
+
+            GameObject proxy = new GameObject("Visibility Mesh - " + filter.name);
+            proxy.layer = 2; // queried explicitly for label visibility; excluded from normal UI taps
+            proxy.transform.SetParent(filter.transform, false);
+            MeshCollider meshCollider = proxy.AddComponent<MeshCollider>();
+            meshCollider.sharedMesh = filter.sharedMesh;
+            meshCollider.enabled = false;
+            femaleVisibilityColliders.Add(meshCollider);
+        }
+    }
+
+    private void SetFemaleVisibilityCollidersEnabled(bool enabled)
+    {
+        for (int i = 0; i < femaleVisibilityColliders.Count; i++)
+            if (femaleVisibilityColliders[i] != null)
+                femaleVisibilityColliders[i].enabled = enabled;
     }
 
     private void OrientFemaleSurfacePinsToCurrentView()
@@ -418,6 +740,9 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
 
     private Vector3 HotspotLocalPoint(Hotspot hotspot)
     {
+        if (hotspot.lockAnchorLocalPosition &&
+            string.Equals(hotspot.title, "Uterus", StringComparison.OrdinalIgnoreCase))
+            return hotspot.lockedAnchorLocalPosition;
         if (hotspot.anchorTransform != null)
             return transform.InverseTransformPoint(hotspot.anchorTransform.position);
         return hotspot.hasExplicitLocalPosition
@@ -601,10 +926,22 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             return;
         selectedIndex = index;
         Hotspot hotspot = hotspots[index];
+        if (cardRect != null && UsesFocusedLabelPresentation)
+        {
+            float cardWidth = string.Equals(hotspot.title, "Fimbriae",
+                StringComparison.OrdinalIgnoreCase)
+                ? Mathf.Min(FimbriaeCardWidth, Mathf.Max(240f, canvasRect.rect.width * 0.42f))
+                : Mathf.Min(CardWidth, Mathf.Max(240f, canvasRect.rect.width - 48f));
+            cardRect.sizeDelta = new Vector2(cardWidth, cardRect.sizeDelta.y);
+        }
         cardTitle.text = UsesFocusedLabelPresentation
             ? hotspot.title : (index + 1) + ". " + hotspot.title;
         cardDescription.text = hotspot.description;
         card.SetActive(true);
+        if (string.Equals(hotspot.title, "Uterus", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(hotspot.title, "Rectum", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(hotspot.title, "Vagina", StringComparison.OrdinalIgnoreCase))
+            hotspot.pin.transform.SetAsLastSibling();
 
         if (UsesFocusedLabelPresentation)
             FocusOnHotspot(hotspot);
@@ -635,20 +972,62 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             return;
 
         Vector3 localPoint = HotspotLocalPoint(hotspot);
-        // Turn the selected anchor's actual surface toward the viewer, then
-        // center that exact landmark in front of the device camera.
+        // Turn the selected surface toward the viewer (or show the inferior
+        // pelvic-floor direction for Anus), then center its landmark.
+        Transform viewAnchor = hotspot.anchorTransform;
+        if (string.Equals(hotspot.title, "Ovaries", StringComparison.OrdinalIgnoreCase))
+        {
+            for (int i = 0; i < hotspots.Count; i++)
+            {
+                if (string.Equals(hotspots[i].title, "Fimbriae", StringComparison.OrdinalIgnoreCase))
+                {
+                    viewAnchor = hotspots[i].anchorTransform;
+                    break;
+                }
+            }
+        }
         Vector3 localSurfaceNormal = transform.InverseTransformDirection(
-            hotspot.anchorTransform.forward);
+            viewAnchor.forward);
         if (localSurfaceNormal.sqrMagnitude < 0.0001f)
             localSurfaceNormal = Vector3.forward;
-        Vector3 currentOutward = (baseWorldRotation * localSurfaceNormal).normalized;
-        Quaternion targetWorldRotation =
-            Quaternion.FromToRotation(currentOutward, -arCamera.transform.forward) * baseWorldRotation;
+        Vector3 desiredLocalView = localSurfaceNormal.normalized;
+        Vector3 currentOutward = (baseWorldRotation * desiredLocalView).normalized;
+        bool isUterus = string.Equals(hotspot.title, "Uterus", StringComparison.OrdinalIgnoreCase);
+        bool isBladder = string.Equals(hotspot.title, "Bladder", StringComparison.OrdinalIgnoreCase);
+        bool isAnus = string.Equals(hotspot.title, "Anus", StringComparison.OrdinalIgnoreCase);
+        bool isVagina = string.Equals(hotspot.title, "Vagina", StringComparison.OrdinalIgnoreCase);
+        bool isRectum = string.Equals(hotspot.title, "Rectum", StringComparison.OrdinalIgnoreCase);
+        // Keep the initial scanned angle for the uterus, bladder, and rectum.
+        // For the vagina and Anus use the model's inferior axis to show the
+        // pelvic floor from the oblique direction in the user's reference.
+        Vector3 focusOutward = isAnus || isVagina
+            ? (baseWorldRotation * Vector3.back).normalized
+            : isBladder
+                ? (baseWorldRotation * Vector3.forward).normalized
+                : currentOutward;
+        Quaternion targetWorldRotation = isUterus || isRectum || isBladder
+            ? baseWorldRotation
+            : Quaternion.FromToRotation(focusOutward, -arCamera.transform.forward) * baseWorldRotation;
+        if (string.Equals(hotspot.title, "Vagina", StringComparison.OrdinalIgnoreCase))
+        {
+            // Add an oblique yaw to the inferior pelvic-floor view, keeping
+            // the selected point centered for the pin.
+            targetWorldRotation = Quaternion.AngleAxis(35f, arCamera.transform.up) *
+                                  targetWorldRotation;
+        }
         Transform parent = transform.parent;
         Quaternion targetLocalRotation = parent != null
             ? Quaternion.Inverse(parent.rotation) * targetWorldRotation
             : targetWorldRotation;
-        Vector3 targetLocalScale = baseLocalScale * FocusZoom;
+        float focusZoom = isUterus ? UterusFocusZoom : isBladder ? BladderFocusZoom :
+            isRectum ? RectumFocusZoom :
+            string.Equals(hotspot.title, "Ovaries", StringComparison.OrdinalIgnoreCase)
+                ? OvariesFocusZoom :
+            string.Equals(hotspot.title, "Fimbriae", StringComparison.OrdinalIgnoreCase)
+                ? FimbriaeFocusZoom :
+            string.Equals(hotspot.title, "Uterine tubes", StringComparison.OrdinalIgnoreCase)
+                ? UterineTubesFocusZoom : FocusZoom;
+        Vector3 targetLocalScale = baseLocalScale * focusZoom;
 
         Vector3 pointOffset = targetLocalRotation * Vector3.Scale(localPoint, targetLocalScale);
         if (parent != null)
@@ -658,6 +1037,8 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
 
         Vector3 targetAnchor = arCamera.transform.position +
                                arCamera.transform.forward * FocusDistance;
+        if (isRectum)
+            targetAnchor -= arCamera.transform.up * 0.04f;
         Vector3 targetWorldPosition = targetAnchor - pointOffset;
         Vector3 targetLocalPosition = parent != null
             ? parent.InverseTransformPoint(targetWorldPosition)
@@ -720,6 +1101,10 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         const float edgeMargin = 24f;
         const float pinGap = 28f;
 
+        bool isFimbriae = selectedIndex >= 0 && selectedIndex < hotspots.Count &&
+            string.Equals(hotspots[selectedIndex].title, "Fimbriae", StringComparison.OrdinalIgnoreCase);
+        bool isRectum = selectedIndex >= 0 && selectedIndex < hotspots.Count &&
+            string.Equals(hotspots[selectedIndex].title, "Rectum", StringComparison.OrdinalIgnoreCase);
         bool leftFits = pinPosition.x - pinGap - cardWidth >= -halfWidth + edgeMargin;
         bool rightFits = pinPosition.x + pinGap + cardWidth <= halfWidth - edgeMargin;
         bool useHorizontalSide = leftFits || rightFits;
@@ -727,7 +1112,25 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         float x;
         float y;
 
-        if (useHorizontalSide)
+        if (isFimbriae)
+        {
+            // Keep the explanation above the fimbriae instead of covering them.
+            cardRect.pivot = new Vector2(0.5f, 0f);
+            x = Mathf.Clamp(pinPosition.x, -halfWidth + cardWidth * 0.5f + edgeMargin,
+                halfWidth - cardWidth * 0.5f - edgeMargin);
+            y = Mathf.Clamp(pinPosition.y + pinGap, -halfHeight + cardHeight + edgeMargin,
+                halfHeight - edgeMargin);
+        }
+        else if (isRectum)
+        {
+            // Keep the rectum explanation below pin 9, clear of the organ.
+            cardRect.pivot = new Vector2(0.5f, 1f);
+            x = Mathf.Clamp(pinPosition.x, -halfWidth + cardWidth * 0.5f + edgeMargin,
+                halfWidth - cardWidth * 0.5f - edgeMargin);
+            y = Mathf.Clamp(pinPosition.y - pinGap, -halfHeight + cardHeight + edgeMargin,
+                halfHeight - edgeMargin);
+        }
+        else if (useHorizontalSide)
         {
             cardRect.pivot = placeLeft ? new Vector2(1f, 0.5f) : new Vector2(0f, 0.5f);
             x = placeLeft
@@ -924,10 +1327,11 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
                 H("Fimbriae", "Fimbriae are small projections that help guide an egg from the ovary into the uterine tube.", -0.72f, 0.48f, 0.4f),
                 H("Uterine tubes", "The uterine tubes carry an egg toward the uterus; fertilization often occurs here.", -0.5f, 0.62f, 0.45f),
                 H("Uterus", "The uterus is a muscular organ where a fertilized egg can implant and develop.", 0f, 0.12f, 0.7f),
-                H("Endometrium", "The endometrium is the inner uterine lining that changes during the menstrual cycle.", 0f, 0.2f, 0.95f),
-                H("Myometrium", "The myometrium is the thick muscular wall of the uterus.", 0.25f, 0.0f, 0.65f),
+                H("Anus", "The anus is the opening at the end of the digestive tract through which stool leaves the body.", 0f, 0.2f, 0.95f),
+                H("Bladder", "The bladder stores urine before it leaves the body.", 0.25f, 0.0f, 0.65f),
                 H("Cervix", "The cervix is the lower narrow part of the uterus that opens into the vagina.", 0f, -0.48f, 0.75f),
-                H("Vagina", "The vagina is an elastic canal connecting the cervix to the outside of the body.", 0f, -0.82f, 0.55f)
+                H("Vagina", "The vagina is an elastic canal connecting the cervix to the outside of the body.", 0f, -0.82f, 0.55f),
+                H("Rectum", "The rectum is the final section of the large intestine, where stool is stored before it leaves the body.", 0.18f, -0.9f, 0.55f)
             }
         };
     }
