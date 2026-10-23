@@ -1172,10 +1172,18 @@ MonoBehaviour:
     prefab: {fileID: 5749031943692034715, guid: 20b5f1518f147ea448187e10c62e9b8e, type: 3}
   - imageName: Kidney
     prefab: {fileID: 5009363985889193690, guid: 942ebdf9580acbf449c1be15b8d1923f, type: 3}
-  - imageName: Neuron
-    prefab: {fileID: 9191515104569167329, guid: 0633949b1509476439c43d8a39678d5c, type: 3}
   - imageName: Female_Reproductive_system
     prefab: {fileID: 588441262182873442, guid: 586c198d54568414594153769b354445, type: 3}
+  - imageName: Digestive_system
+    prefab: {fileID: 625436024125035039, guid: 06ef26e694a19b94d9a091b0eed5f722, type: 3}
+  - imageName: Plant_cell
+    prefab: {fileID: 8575267162343679934, guid: ac9d617bf4fdb5c42ae973701dc11ac7, type: 3}
+  - imageName: Neuron
+    prefab: {fileID: 5742976801621650626, guid: b58913e260f2b384d8fc9ec9ff24800a, type: 3}
+  - imageName: Nephron
+    prefab: {fileID: 5169467273439630452, guid: 7a1a9715c6375ba418126f7e621f0122, type: 3}
+  - imageName: Animal_cell
+    prefab: {fileID: 8575267162343679934, guid: b95dd31703d64daa9e14fa1ef5843fdf, type: 3}
 --- !u!114 &254885135
 MonoBehaviour:
   m_ObjectHideFlags: 0
