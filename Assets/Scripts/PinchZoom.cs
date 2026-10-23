@@ -36,6 +36,8 @@ public class PinchZoom : MonoBehaviour
             newScale.z = Mathf.Clamp(newScale.z, minScale, maxScale);
 
             transform.localScale = newScale;
+            HeartbeatAnimator beatAnim = GetComponent<HeartbeatAnimator>();
+            if (beatAnim != null) beatAnim.RefreshBaseScale();
         }
     }
 }

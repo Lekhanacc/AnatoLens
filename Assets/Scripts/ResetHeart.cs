@@ -15,5 +15,8 @@ public class ResetHeart : MonoBehaviour
     {
         transform.localScale = originalScale;
         transform.localRotation = originalRotation;
+
+        HeartbeatAnimator beatAnim = GetComponent<HeartbeatAnimator>();
+        if (beatAnim != null) beatAnim.RefreshBaseScale();
     }
 }

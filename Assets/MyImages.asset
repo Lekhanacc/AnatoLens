@@ -27,3 +27,23 @@ MonoBehaviour:
     m_SpecifySize: 1
     m_Name: Heart
     m_Texture: {fileID: 2800000, guid: d4a3086252b762246a14caa0c872f107, type: 3}
+  - m_SerializedGuid:
+      m_GuidLow: 4892115547407520881
+      m_GuidHigh: 1955933658011956871
+    m_SerializedTextureGuid:
+      m_GuidLow: 10449505289614315763
+      m_GuidHigh: 6514729883355904539
+    m_Size: {x: 0.2, y: 0.12810127}
+    m_SpecifySize: 1
+    m_Name: Brain
+    m_Texture: {fileID: 2800000, guid: 7206d0f319b291041bfa0cf94ff8685a, type: 3}
+  - m_SerializedGuid:
+      m_GuidLow: 5113057965460982458
+      m_GuidHigh: 16866693036404459394
+    m_SerializedTextureGuid:
+      m_GuidLow: 13403987465743651336
+      m_GuidHigh: 9943491490151274410
+    m_Size: {x: 0.13627659, y: 0.1281}
+    m_SpecifySize: 1
+    m_Name: Kidney
+    m_Texture: {fileID: 0}

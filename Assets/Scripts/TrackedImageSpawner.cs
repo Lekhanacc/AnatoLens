@@ -148,45 +148,69 @@ public class TrackedImageSpawner : MonoBehaviour
         // --------------------------------------------------
 
         if (spawnedObjects.ContainsKey(imageName))
-        {
-            spawnedObjects[imageName].SetActive(true);
+{
+    GameObject existing = spawnedObjects[imageName];
 
-            return;
-        }
+    // Make sure it's actually attached to THIS tracked image.
+    if (existing.transform.parent != trackedImage.transform)
+    {
+        existing.transform.SetParent(trackedImage.transform, false);
+        existing.transform.localPosition = Vector3.zero;
+        existing.transform.localRotation = Quaternion.identity;
+        existing.transform.localScale = Vector3.one;
+    }
+
+    existing.SetActive(true);
+    return;
+}
 
 
         // --------------------------------------------------
         // CREATE HEART
         // --------------------------------------------------
 
+        GameObject prefab = ResolvePrefab(imageName);
+        if (prefab == null)
+        {
+            Debug.LogWarning(
+                "[AR] No prefab is configured for image '" + imageName +
+                "'. Assign a fallback prefab or add an image-specific entry.");
+            return;
+        }
+
+        GameObject obj = Instantiate(prefab);
+
+        // Attach the same heart model to every recognized image in the
+        // reference library unless that image has a specific prefab override.
+        obj.transform.SetParent(trackedImage.transform, false);
+        obj.transform.localPosition = Vector3.zero;
+        obj.transform.localRotation = Quaternion.identity;
+        obj.transform.localScale = Vector3.one;
+
+        spawnedObjects.Add(imageName, obj);
+        Debug.Log("[AR] Prefab spawned on tracked image: " + imageName);
+    }
+
+    GameObject ResolvePrefab(string imageName)
+    {
+        if (imagePrefabs == null || imagePrefabs.Count == 0)
+            return null;
+
+        // Preserve image-specific assignments. The first configured prefab
+        // is the default, so newly added library images need no extra mapping.
         foreach (var item in imagePrefabs)
         {
-            if (item.imageName == imageName)
-            {
-                GameObject obj = Instantiate(item.prefab);
-
-                // Attach Heart to tracked image
-                obj.transform.SetParent(
-                    trackedImage.transform,
-                    false
-                );
-
-                // Put Heart at center of image
-                obj.transform.localPosition = Vector3.zero;
-
-                obj.transform.localRotation = Quaternion.identity;
-
-                obj.transform.localScale = Vector3.one;
-
-                spawnedObjects.Add(imageName, obj);
-
-                Debug.Log(
-                    "[AR] Heart spawned on image: " + imageName
-                );
-
-                break;
-            }
+            if (item != null && item.imageName == imageName && item.prefab != null)
+                return item.prefab;
         }
+
+        foreach (var item in imagePrefabs)
+        {
+            if (item != null && item.prefab != null)
+                return item.prefab;
+        }
+
+        return null;
     }
 
 
@@ -212,109 +236,44 @@ public class TrackedImageSpawner : MonoBehaviour
     // --------------------------------------------------
 
     void LockCurrentModel()
+{
+    string activeImageName = null;
+
+    foreach (var kvp in spawnedObjects)
     {
-        string activeImageName = null;
-
-
-        // Find currently visible Heart
-        foreach (var kvp in spawnedObjects)
+        if (kvp.Value != null && kvp.Value.activeInHierarchy)
         {
-            if (kvp.Value != null &&
-                kvp.Value.activeInHierarchy)
-            {
-                activeImageName = kvp.Key;
-                break;
-            }
-        }
-
-
-        // No Heart visible
-        if (activeImageName == null)
-        {
-            Debug.Log(
-                "[FIX] No visible Heart. Scan the image first."
-            );
-
-            return;
-        }
-
-
-        GameObject obj = spawnedObjects[activeImageName];
-
-
-        // --------------------------------------------------
-        // SAVE CURRENT HEART POSITION
-        // --------------------------------------------------
-
-        Pose heartPose = new Pose(
-            obj.transform.position,
-            obj.transform.rotation
-        );
-
-
-        // --------------------------------------------------
-        // CREATE AR ANCHOR
-        // --------------------------------------------------
-
-        if (anchorManager == null)
-        {
-            Debug.LogError(
-                "[FIX] AR Anchor Manager is missing!"
-            );
-
-            return;
-        }
-
-
-        ARAnchor anchor = anchorManager.AddAnchor(heartPose);
-
-
-        // --------------------------------------------------
-        // ANCHOR CREATED
-        // --------------------------------------------------
-
-        if (anchor != null)
-        {
-            // Remove Heart from the image.
-            // Keep its world position.
-            obj.transform.SetParent(
-                anchor.transform,
-                true
-            );
-
-
-            // Make sure the Heart stays exactly
-            // where the user pressed FIX.
-            obj.transform.position =
-                heartPose.position;
-
-            obj.transform.rotation =
-                heartPose.rotation;
-
-
-            // Save anchor information
-            lockedAnchor = anchor;
-
-            lockedImageName = activeImageName;
-
-            isLocked = true;
-
-
-            Debug.Log(
-                "[FIX] ❤️ Heart successfully locked!"
-            );
-
-            Debug.Log(
-                "[FIX] Marker is no longer required."
-            );
-        }
-        else
-        {
-            Debug.LogWarning(
-                "[FIX] Could not create AR Anchor."
-            );
+            activeImageName = kvp.Key;
+            break;
         }
     }
+
+    if (activeImageName == null)
+    {
+        Debug.Log("[FIX] No visible Heart. Scan the image first.");
+        return;
+    }
+
+    GameObject obj = spawnedObjects[activeImageName];
+
+    // Detach from the tracked image.
+    obj.transform.SetParent(null, true);
+
+    // Make it follow the camera.
+    ScreenLockFollower follower = obj.GetComponent<ScreenLockFollower>();
+
+    if (follower == null)
+        follower = obj.AddComponent<ScreenLockFollower>();
+
+    // Preserve the calibrated root/HeartModel orientation exactly as it appeared
+    // when the model was locked. ScreenLockFollower changes position only.
+    follower.SnapToCamera();
+
+    lockedImageName = activeImageName;
+    isLocked = true;
+
+    Debug.Log("[FIX] ❤️ Heart locked to screen.");
+}
 
 
     // --------------------------------------------------
@@ -322,62 +281,31 @@ public class TrackedImageSpawner : MonoBehaviour
     // --------------------------------------------------
 
     void UnlockCurrentModel()
+{
+    if (lockedImageName != null &&
+        spawnedObjects.TryGetValue(lockedImageName, out GameObject obj) &&
+        trackedImageRefs.TryGetValue(lockedImageName, out ARTrackedImage image))
     {
-        // Remove the current anchor
-        if (lockedAnchor != null)
+        ScreenLockFollower follower = obj.GetComponent<ScreenLockFollower>();
+
+        if (follower != null)
+            Destroy(follower);
+
+        if (image.trackingState == TrackingState.Tracking)
         {
-            Destroy(lockedAnchor.gameObject);
+            obj.transform.SetParent(image.transform, false);
 
-            lockedAnchor = null;
+            obj.transform.localPosition = Vector3.zero;
+            obj.transform.localRotation = Quaternion.identity;
+            obj.transform.localScale = Vector3.one;
+
+            obj.SetActive(true);
         }
-
-
-        // Find the original tracked image
-        if (lockedImageName != null &&
-            spawnedObjects.TryGetValue(
-                lockedImageName,
-                out GameObject obj
-            ) &&
-            trackedImageRefs.TryGetValue(
-                lockedImageName,
-                out ARTrackedImage image
-            ))
-        {
-            // Only reconnect if image is currently visible
-            if (image.trackingState ==
-                TrackingState.Tracking)
-            {
-                obj.transform.SetParent(
-                    image.transform,
-                    false
-                );
-
-                obj.transform.localPosition =
-                    Vector3.zero;
-
-                obj.transform.localRotation =
-                    Quaternion.identity;
-
-                obj.transform.localScale =
-                    Vector3.one;
-
-                obj.SetActive(true);
-            }
-        }
-
-
-        // Reset lock information
-        isLocked = false;
-
-        lockedImageName = null;
-
-
-        Debug.Log(
-            "[FIX] 🔓 Heart unlocked."
-        );
-
-        Debug.Log(
-            "[FIX] Image tracking resumed."
-        );
     }
+
+    isLocked = false;
+    lockedImageName = null;
+
+    Debug.Log("[FIX] 🔓 Heart unlocked. Image tracking resumed.");
+}
 }
