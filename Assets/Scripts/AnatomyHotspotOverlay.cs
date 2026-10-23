@@ -15,6 +15,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         public Vector3 normalizedPosition;
         public Transform anchorTransform;
         public Transform occlusionTarget;
+        public AnatomyHotspotAnchorSettings authoringSettings;
         public bool lockAnchorLocalPosition;
         public Vector3 lockedAnchorLocalPosition;
         public Vector3 explicitLocalPosition;
@@ -33,6 +34,17 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
     private readonly List<Hotspot> hotspots = new List<Hotspot>();
     private readonly List<MeshCollider> femaleVisibilityColliders = new List<MeshCollider>();
     private readonly RaycastHit[] visibilityRayHits = new RaycastHit[64];
+    private static readonly Vector2[] AnusVisibilityProbeOffsets =
+    {
+        new Vector2(-24f, 0f), new Vector2(24f, 0f),
+        new Vector2(0f, -24f), new Vector2(0f, 24f),
+        new Vector2(-17f, -17f), new Vector2(17f, -17f),
+        new Vector2(-17f, 17f), new Vector2(17f, 17f),
+        new Vector2(-12f, 0f), new Vector2(12f, 0f),
+        new Vector2(0f, -12f), new Vector2(0f, 12f),
+        new Vector2(-8f, -8f), new Vector2(8f, -8f),
+        new Vector2(-8f, 8f), new Vector2(8f, 8f)
+    };
     private Camera arCamera;
     private Canvas canvas;
     private RectTransform canvasRect;
@@ -85,7 +97,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
     {
         organKey = key;
         CreateHotspots();
-        CreateFemaleVisibilityColliders();
+        CreateVisibilityColliders();
         CreateOverlay();
         if (HasHotspots)
         {
@@ -108,7 +120,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             hasBasePose = false;
         }
         SetScreenLockPositionPaused(false);
-        SetFemaleVisibilityCollidersEnabled(false);
+        SetVisibilityCollidersEnabled(false);
         if (canvas != null)
             canvas.gameObject.SetActive(false);
         visible = false;
@@ -137,7 +149,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         if (arCamera == null)
             return;
 
-        if (HasFemaleOcclusionTargets())
+        if (HasVisibilityTargets())
             Physics.SyncTransforms();
 
         bool ovariesPinVisible = false;
@@ -162,20 +174,26 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             bool onScreen = screen.z > 0f && screen.x >= 0f && screen.x <= Screen.width &&
                             screen.y >= 0f && screen.y <= Screen.height;
             bool selectedFixedPin = i == selectedIndex &&
-                (string.Equals(hotspots[i].title, "Rectum", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(hotspots[i].title, "Vagina", StringComparison.OrdinalIgnoreCase));
-            if (onScreen && IsFemaleSurfaceHotspot(hotspots[i]) && !selectedFixedPin)
+                (string.Equals(hotspots[i].title, "Anus", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(hotspots[i].title, "Rectum", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(hotspots[i].title, "Vagina", StringComparison.OrdinalIgnoreCase) ||
+                 IsBrainSurfaceHotspot(hotspots[i]));
+            if (onScreen && (IsFemaleSurfaceHotspot(hotspots[i]) ||
+                IsBrainSurfaceHotspot(hotspots[i])) && !selectedFixedPin)
             {
                 if (string.Equals(hotspots[i].title, "Fimbriae", StringComparison.OrdinalIgnoreCase))
                     onScreen = ovariesPinVisible;
                 else if (string.Equals(hotspots[i].title, "Anus", StringComparison.OrdinalIgnoreCase))
                     onScreen = hotspots[i].occlusionTarget != null
-                        ? IsHotspotSurfaceVisible(hotspots[i])
+                        ? IsHotspotSurfaceVisible(hotspots[i]) || IsHotspotFacingCamera(hotspots[i])
                         : IsHotspotFacingCamera(hotspots[i]);
                 else if (string.Equals(hotspots[i].title, "Vagina", StringComparison.OrdinalIgnoreCase))
                     onScreen = hotspots[i].occlusionTarget != null
                         ? IsHotspotSurfaceVisible(hotspots[i]) || IsHotspotFacingCamera(hotspots[i])
                         : IsHotspotFacingCamera(hotspots[i]);
+                else if (string.Equals(organKey, "Brain", StringComparison.OrdinalIgnoreCase) &&
+                         hotspots[i].occlusionTarget != null)
+                    onScreen = IsHotspotSurfaceVisible(hotspots[i]);
                 else if (string.Equals(hotspots[i].title, "Uterus", StringComparison.OrdinalIgnoreCase))
                     onScreen = hotspots[i].occlusionTarget != null
                         ? IsHotspotSurfaceVisible(hotspots[i])
@@ -258,7 +276,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             femaleSurfaceNormalsInitialized = true;
         }
         visible = true;
-        SetFemaleVisibilityCollidersEnabled(true);
+        SetVisibilityCollidersEnabled(true);
         selectedIndex = -1;
         card.SetActive(false);
         canvas.gameObject.SetActive(true);
@@ -269,7 +287,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
     {
         visible = false;
         selectedIndex = -1;
-        SetFemaleVisibilityCollidersEnabled(false);
+        SetVisibilityCollidersEnabled(false);
         if (focusTransition != null)
             StopCoroutine(focusTransition);
         focusTransition = null;
@@ -329,7 +347,36 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             Transform occlusionTarget = null;
             if (anchor == null && string.Equals(organKey, "Female_Reproductive_system",
                     StringComparison.OrdinalIgnoreCase))
-                anchor = FindFemaleLabelAnchor(i + 1);
+                anchor = FindNumberedLabelAnchor(i + 1);
+            if (anchor == null && string.Equals(organKey, "Brain",
+                    StringComparison.OrdinalIgnoreCase))
+                anchor = FindNumberedLabelAnchor(i + 1);
+            if (anchor == null && string.Equals(organKey, "Brain",
+                    StringComparison.OrdinalIgnoreCase) &&
+                (string.Equals(definition.title, "Cerebrum", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(definition.title, "Frontal lobe", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(definition.title, "Parietal lobe", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(definition.title, "Temporal lobe", StringComparison.OrdinalIgnoreCase)))
+            {
+                anchor = new GameObject("LabelAnchor_" + (i + 1).ToString("00")).transform;
+                anchor.SetParent(transform, false);
+                AttachBrainRootAnchorToSurface(anchor,
+                    BoundsPoint(definition.normalizedPosition), out occlusionTarget);
+            }
+            AnatomyHotspotAnchorSettings authoringSettings = anchor != null
+                ? anchor.GetComponent<AnatomyHotspotAnchorSettings>() : null;
+            if (authoringSettings != null && authoringSettings.visibilityTarget != null)
+                occlusionTarget = authoringSettings.visibilityTarget;
+            if (anchor != null && string.Equals(organKey, "Brain",
+                    StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(definition.title, "Cerebrum", StringComparison.OrdinalIgnoreCase))
+            {
+                Vector3 rootLocalTarget = transform.InverseTransformPoint(anchor.position);
+                AttachBrainRootAnchorToSurface(anchor, rootLocalTarget,
+                    out Transform brainSurface, true);
+                if (occlusionTarget == null)
+                    occlusionTarget = brainSurface;
+            }
             if (anchor == null && string.Equals(organKey, "Female_Reproductive_system",
                     StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(definition.title, "Rectum", StringComparison.OrdinalIgnoreCase))
@@ -401,8 +448,15 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
                         occlusionTarget = anchor.parent;
                 }
                 else if (i == 6)
+                {
+                    // Label 7 marks the broad upper outer wing of the ilium.
+                    // This point is on one side of the paired pelvic bones.
                     AttachFemaleSurfaceAnchor(anchor,
-                        "Uterus_CutAway_FNL_Uterus_and_vagina", 0.5f, 0.32f, 0.5f);
+                        "Pelvis_Edit_Pelvis_M_0", 0.72f, 0.78f, 0.18f);
+                    if (anchor.parent != null && anchor.parent.name.IndexOf(
+                            "Pelvis_Edit_Pelvis_M_0", StringComparison.OrdinalIgnoreCase) >= 0)
+                        occlusionTarget = anchor.parent;
+                }
                 else if (i == 7)
                 {
                     // Start from the exact prefab-local point supplied by the user,
@@ -446,6 +500,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
                 normalizedPosition = definition.normalizedPosition,
                 anchorTransform = anchor,
                 occlusionTarget = occlusionTarget,
+                authoringSettings = authoringSettings,
                 lockAnchorLocalPosition = lockAnchorLocalPosition,
                 lockedAnchorLocalPosition = lockAnchorLocalPosition ? anchor.localPosition : Vector3.zero,
                 explicitLocalPosition = hasSupplementalAnchor ? supplementalPosition : Vector3.zero,
@@ -493,7 +548,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         }
     }
 
-    private Transform FindFemaleLabelAnchor(int labelNumber)
+    private Transform FindNumberedLabelAnchor(int labelNumber)
     {
         string anchorName = "LabelAnchor_" + labelNumber.ToString("00");
         Transform[] children = GetComponentsInChildren<Transform>(true);
@@ -501,6 +556,85 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             if (child.name == anchorName)
                 return child;
         return null;
+    }
+
+    private void AttachBrainRootAnchorToSurface(Transform anchor, Vector3 rootLocalTarget,
+        out Transform visibilityTarget, bool preserveRotation = false)
+    {
+        visibilityTarget = null;
+        Transform fallbackParent = transform.Find("BrainModel");
+        if (fallbackParent == null)
+            fallbackParent = transform;
+        MeshFilter target = null;
+        int largestVertexCount = -1;
+        MeshFilter[] meshFilters = GetComponentsInChildren<MeshFilter>(true);
+        foreach (MeshFilter filter in meshFilters)
+        {
+            int vertexCount = filter.sharedMesh != null ? filter.sharedMesh.vertexCount : 0;
+            if (vertexCount > largestVertexCount)
+            {
+                target = filter;
+                largestVertexCount = vertexCount;
+            }
+        }
+
+        if (target == null || target.sharedMesh == null)
+        {
+            anchor.SetParent(fallbackParent, false);
+            anchor.position = transform.TransformPoint(rootLocalTarget);
+            return;
+        }
+
+        Vector3[] vertices;
+        Vector3[] normals;
+        try
+        {
+            vertices = target.sharedMesh.vertices;
+            normals = target.sharedMesh.normals;
+        }
+        catch (Exception exception)
+        {
+            Debug.LogWarning("[Labels] Could not snap the brain anchor to the brain surface: " +
+                exception.Message);
+            anchor.SetParent(fallbackParent, false);
+            anchor.position = transform.TransformPoint(rootLocalTarget);
+            visibilityTarget = target.transform;
+            return;
+        }
+
+        if (vertices == null || vertices.Length == 0)
+        {
+            anchor.SetParent(fallbackParent, false);
+            anchor.position = transform.TransformPoint(rootLocalTarget);
+            visibilityTarget = target.transform;
+            return;
+        }
+
+        int nearest = 0;
+        float nearestDistance = float.PositiveInfinity;
+        for (int i = 0; i < vertices.Length; i++)
+        {
+            Vector3 rootLocalVertex = transform.InverseTransformPoint(
+                target.transform.TransformPoint(vertices[i]));
+            float distance = (rootLocalVertex - rootLocalTarget).sqrMagnitude;
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = i;
+            }
+        }
+
+        Quaternion previousWorldRotation = anchor.rotation;
+        anchor.SetParent(target.transform, false);
+        anchor.localPosition = vertices[nearest];
+        if (preserveRotation)
+            anchor.rotation = previousWorldRotation;
+        if (!preserveRotation && normals != null && normals.Length == vertices.Length)
+        {
+            anchor.localRotation = Quaternion.FromToRotation(Vector3.forward,
+                normals[nearest].normalized);
+        }
+        visibilityTarget = target.transform;
     }
 
     private void AttachFemaleSurfaceAnchor(Transform anchor, string meshName,
@@ -614,6 +748,13 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             string.Equals(organKey, "Female_Reproductive_system", StringComparison.OrdinalIgnoreCase);
     }
 
+    private bool IsBrainSurfaceHotspot(Hotspot hotspot)
+    {
+        return hotspot != null && hotspot.anchorTransform != null &&
+            hotspot.occlusionTarget != null &&
+            string.Equals(organKey, "Brain", StringComparison.OrdinalIgnoreCase);
+    }
+
     private bool IsHiddenFemaleLabel(Hotspot hotspot)
     {
         if (!string.Equals(organKey, "Female_Reproductive_system", StringComparison.OrdinalIgnoreCase))
@@ -650,20 +791,84 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             if (hitCollider == null)
                 continue;
 
-            if (hitCollider.transform.parent == hotspot.occlusionTarget)
+            if (IsVisibilityHitOnHotspotTarget(hitCollider, hotspot))
                 nearestTargetHit = Mathf.Min(nearestTargetHit, visibilityRayHits[i].distance);
             else
                 nearestOccluderHit = Mathf.Min(nearestOccluderHit, visibilityRayHits[i].distance);
         }
 
+        bool isNonCerebrumBrainLabel = string.Equals(organKey, "Brain",
+            StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(hotspot.title, "Cerebrum", StringComparison.OrdinalIgnoreCase);
         float surfacePointTolerance = string.Equals(hotspot.title, "Uterus",
-            StringComparison.OrdinalIgnoreCase) ? 0.14f : 0.04f;
-        return !float.IsPositiveInfinity(nearestTargetHit) &&
+            StringComparison.OrdinalIgnoreCase) ? 0.14f :
+            isNonCerebrumBrainLabel ? 0.18f :
+            string.Equals(organKey, "Brain", StringComparison.OrdinalIgnoreCase) ? 0.08f : 0.04f;
+        bool directSurfaceVisible = !float.IsPositiveInfinity(nearestTargetHit) &&
             nearestTargetHit <= nearestOccluderHit + 0.002f &&
             Mathf.Abs(distance - nearestTargetHit) <= surfacePointTolerance;
+        if (directSurfaceVisible)
+            return true;
+
+        return string.Equals(hotspot.title, "Anus", StringComparison.OrdinalIgnoreCase) &&
+            IsAnusOpeningVisible(surfacePoint, hotspot.occlusionTarget, distance + 0.15f);
     }
 
-    private bool HasFemaleOcclusionTargets()
+    private bool IsVisibilityHitOnHotspotTarget(Collider hitCollider, Hotspot hotspot)
+    {
+        if (hitCollider == null || hotspot == null || hotspot.occlusionTarget == null)
+            return false;
+
+        // Brain labels 1-6 target surfaces nested below the Brain root. Their
+        // visibility colliders are parented under imported mesh objects, so
+        // checking only the immediate parent incorrectly treats those hits as
+        // occluders. Leave the established Cerebrum (label 7) behavior alone.
+        bool isNonCerebrumBrainLabel = string.Equals(organKey, "Brain", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(hotspot.title, "Cerebrum", StringComparison.OrdinalIgnoreCase);
+        if (isNonCerebrumBrainLabel)
+            return hitCollider.transform == hotspot.occlusionTarget ||
+                hitCollider.transform.IsChildOf(hotspot.occlusionTarget);
+
+        return hitCollider.transform.parent == hotspot.occlusionTarget;
+    }
+
+    private bool IsAnusOpeningVisible(Vector3 surfacePoint, Transform target, float maxDistance)
+    {
+        Vector3 screenPoint = arCamera.WorldToScreenPoint(surfacePoint);
+        if (screenPoint.z <= 0f)
+            return false;
+
+        for (int i = 0; i < AnusVisibilityProbeOffsets.Length; i++)
+        {
+            Vector3 probe = screenPoint + (Vector3)AnusVisibilityProbeOffsets[i];
+            Ray ray = arCamera.ScreenPointToRay(probe);
+            int hitCount = Physics.RaycastNonAlloc(ray, visibilityRayHits, maxDistance,
+                1 << 2, QueryTriggerInteraction.Ignore);
+            float nearestTargetHit = float.PositiveInfinity;
+            float nearestOccluderHit = float.PositiveInfinity;
+            for (int hitIndex = 0; hitIndex < hitCount; hitIndex++)
+            {
+                Collider hitCollider = visibilityRayHits[hitIndex].collider;
+                if (hitCollider == null)
+                    continue;
+
+                if (hitCollider.transform.parent == target)
+                    nearestTargetHit = Mathf.Min(nearestTargetHit,
+                        visibilityRayHits[hitIndex].distance);
+                else
+                    nearestOccluderHit = Mathf.Min(nearestOccluderHit,
+                        visibilityRayHits[hitIndex].distance);
+            }
+
+            if (!float.IsPositiveInfinity(nearestTargetHit) &&
+                nearestTargetHit <= nearestOccluderHit + 0.002f)
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool HasVisibilityTargets()
     {
         for (int i = 0; i < hotspots.Count; i++)
             if (hotspots[i].occlusionTarget != null)
@@ -671,9 +876,9 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         return false;
     }
 
-    private void CreateFemaleVisibilityColliders()
+    private void CreateVisibilityColliders()
     {
-        if (!HasFemaleOcclusionTargets())
+        if (!HasVisibilityTargets())
             return;
 
         MeshFilter[] meshFilters = GetComponentsInChildren<MeshFilter>(true);
@@ -692,7 +897,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         }
     }
 
-    private void SetFemaleVisibilityCollidersEnabled(bool enabled)
+    private void SetVisibilityCollidersEnabled(bool enabled)
     {
         for (int i = 0; i < femaleVisibilityColliders.Count; i++)
             if (femaleVisibilityColliders[i] != null)
@@ -991,30 +1196,30 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         if (localSurfaceNormal.sqrMagnitude < 0.0001f)
             localSurfaceNormal = Vector3.forward;
         Vector3 desiredLocalView = localSurfaceNormal.normalized;
+        if (hotspot.authoringSettings != null &&
+            hotspot.authoringSettings.useCustomFocusDirection &&
+            hotspot.authoringSettings.focusDirectionLocal.sqrMagnitude > 0.0001f)
+            desiredLocalView = hotspot.authoringSettings.focusDirectionLocal.normalized;
         Vector3 currentOutward = (baseWorldRotation * desiredLocalView).normalized;
         bool isUterus = string.Equals(hotspot.title, "Uterus", StringComparison.OrdinalIgnoreCase);
         bool isBladder = string.Equals(hotspot.title, "Bladder", StringComparison.OrdinalIgnoreCase);
         bool isAnus = string.Equals(hotspot.title, "Anus", StringComparison.OrdinalIgnoreCase);
-        bool isVagina = string.Equals(hotspot.title, "Vagina", StringComparison.OrdinalIgnoreCase);
         bool isRectum = string.Equals(hotspot.title, "Rectum", StringComparison.OrdinalIgnoreCase);
-        // Keep the initial scanned angle for the uterus, bladder, and rectum.
-        // For the vagina and Anus use the model's inferior axis to show the
-        // pelvic floor from the oblique direction in the user's reference.
-        Vector3 focusOutward = isAnus || isVagina
+        bool isBrainstem = string.Equals(hotspot.title, "Brainstem", StringComparison.OrdinalIgnoreCase);
+        // Keep the initial scanned angle for the uterus, bladder, rectum, and
+        // brainstem so focus only magnifies and recenters the selected point.
+        // For Anus use the model's inferior axis to show the pelvic floor.
+        // The vagina follows its anchor's surface normal so the selected
+        // structure faces the camera instead of turning toward an unrelated
+        // model axis that can hide it behind the pelvic floor.
+        Vector3 focusOutward = isAnus
             ? (baseWorldRotation * Vector3.back).normalized
             : isBladder
                 ? (baseWorldRotation * Vector3.forward).normalized
                 : currentOutward;
-        Quaternion targetWorldRotation = isUterus || isRectum || isBladder
+        Quaternion targetWorldRotation = isUterus || isRectum || isBladder || isBrainstem
             ? baseWorldRotation
             : Quaternion.FromToRotation(focusOutward, -arCamera.transform.forward) * baseWorldRotation;
-        if (string.Equals(hotspot.title, "Vagina", StringComparison.OrdinalIgnoreCase))
-        {
-            // Add an oblique yaw to the inferior pelvic-floor view, keeping
-            // the selected point centered for the pin.
-            targetWorldRotation = Quaternion.AngleAxis(35f, arCamera.transform.up) *
-                                  targetWorldRotation;
-        }
         Transform parent = transform.parent;
         Quaternion targetLocalRotation = parent != null
             ? Quaternion.Inverse(parent.rotation) * targetWorldRotation
@@ -1027,6 +1232,8 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
                 ? FimbriaeFocusZoom :
             string.Equals(hotspot.title, "Uterine tubes", StringComparison.OrdinalIgnoreCase)
                 ? UterineTubesFocusZoom : FocusZoom;
+        if (hotspot.authoringSettings != null && hotspot.authoringSettings.focusZoom > 0f)
+            focusZoom = hotspot.authoringSettings.focusZoom;
         Vector3 targetLocalScale = baseLocalScale * focusZoom;
 
         Vector3 pointOffset = targetLocalRotation * Vector3.Scale(localPoint, targetLocalScale);
@@ -1157,7 +1364,11 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
                 : Mathf.Clamp(pinPosition.y - pinGap, -halfHeight + edgeMargin,
                     halfHeight - cardHeight - edgeMargin);
         }
-        cardRect.anchoredPosition = new Vector2(x, y);
+        Vector2 popupOffset = selectedIndex >= 0 && selectedIndex < hotspots.Count &&
+            hotspots[selectedIndex].authoringSettings != null
+                ? hotspots[selectedIndex].authoringSettings.popupOffset
+                : Vector2.zero;
+        cardRect.anchoredPosition = new Vector2(x, y) + popupOffset;
     }
 
     private static GameObject CreatePanel(Transform parent, string name, Color color)
@@ -1249,9 +1460,9 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             },
             ["Brain"] = new[]
             {
-                H("Frontal lobe", "The frontal lobe supports planning, decision-making, movement, and speech.", 0.0f, 0.45f, 0.75f),
-                H("Parietal lobe", "The parietal lobe processes touch and helps map the body's position.", 0.48f, 0.12f, 0.45f),
-                H("Temporal lobe", "The temporal lobe helps process sound, language, and memory.", -0.55f, -0.12f, 0.5f),
+                H("Frontal lobe", "The anterior-most region of the cerebrum, extending from the frontal pole back to the central sulcus and inferiorly to the lateral sulcus (Sylvian fissure).", 0.0f, 0.45f, 0.75f),
+                H("Parietal lobe", "The superior-posterior region of the cerebrum, posterior to the central sulcus, superior to the lateral sulcus, and anterior to the parieto-occipital sulcus.", 0.35f, 0.45f, -0.1f),
+                H("Temporal lobe", "The inferior-lateral region of the cerebrum, inferior to the lateral sulcus (Sylvian fissure) and anterior to the preoccipital notch on both the left and right sides.", -0.55f, -0.45f, 0.35f),
                 H("Occipital lobe", "The occipital lobe processes visual information.", 0.0f, 0.0f, -0.95f),
                 H("Cerebellum", "The cerebellum helps coordinate balance and precise movement.", 0.0f, -0.68f, -0.65f),
                 H("Brainstem", "The brainstem connects the brain with the spinal cord and regulates essential functions.", 0.0f, -0.82f, 0.1f),
@@ -1286,28 +1497,6 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
                 H("Ureter", "The ureter carries urine from the kidney to the bladder.", 0.15f, -0.85f, 0.6f),
                 H("Renal capsule", "The renal capsule is a thin protective covering around the kidney.", -0.72f, -0.2f, 0.45f)
             },
-            ["Skeleton"] = new[]
-            {
-                H("Skull", "The skull protects the brain and supports the structures of the face.", 0f, 0.9f, 0.7f),
-                H("Cervical vertebrae", "Seven cervical vertebrae support the head and allow neck movement.", 0f, 0.7f, 0.4f),
-                H("Clavicle", "The clavicle links the sternum to the shoulder and helps support the arm.", -0.22f, 0.55f, 0.4f),
-                H("Scapula", "The scapula is the shoulder blade, where several shoulder muscles attach.", 0.22f, 0.48f, -0.8f),
-                H("Sternum", "The sternum is the breastbone at the front of the rib cage.", 0f, 0.32f, 0.9f),
-                H("Ribs", "The ribs form a protective cage around the heart and lungs.", -0.38f, 0.3f, 0.6f),
-                H("Humerus", "The humerus is the long bone of the upper arm.", -0.58f, 0.48f, 0.25f),
-                H("Radius", "The radius is a forearm bone on the thumb side.", -0.82f, 0.45f, 0.3f),
-                H("Ulna", "The ulna is the forearm bone on the little-finger side.", 0.82f, 0.42f, 0.3f),
-                H("Hand bones", "The wrist, palm, and finger bones work together for grasping and fine movement.", 0.96f, 0.4f, 0.5f),
-                H("Thoracic vertebrae", "Twelve thoracic vertebrae connect with the ribs.", 0f, 0.18f, -0.8f),
-                H("Lumbar vertebrae", "Five lumbar vertebrae bear much of the upper body's load.", 0f, -0.08f, -0.75f),
-                H("Pelvis", "The pelvis supports the trunk and connects it to the lower limbs.", 0f, -0.18f, 0.65f),
-                H("Sacrum", "The sacrum connects the spine with the pelvis.", 0f, -0.2f, -0.7f),
-                H("Femur", "The femur is the thigh bone and the longest bone in the body.", -0.18f, -0.48f, 0.45f),
-                H("Patella", "The patella, or kneecap, protects the knee joint.", 0.18f, -0.62f, 0.8f),
-                H("Tibia", "The tibia is the larger, weight-bearing bone of the lower leg.", -0.18f, -0.82f, 0.4f),
-                H("Fibula", "The fibula is the smaller bone alongside the tibia.", 0.2f, -0.82f, 0.35f),
-                H("Foot bones", "The ankle, midfoot, and toe bones support standing and walking.", 0f, -0.96f, 0.55f)
-            },
             ["Neuron"] = new[]
             {
                 H("Dendrites", "Dendrites receive signals from other neurons and carry them toward the cell body.", -0.72f, 0.42f, 0.35f),
@@ -1329,7 +1518,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
                 H("Uterus", "The uterus is a muscular organ where a fertilized egg can implant and develop.", 0f, 0.12f, 0.7f),
                 H("Anus", "The anus is the opening at the end of the digestive tract through which stool leaves the body.", 0f, 0.2f, 0.95f),
                 H("Bladder", "The bladder stores urine before it leaves the body.", 0.25f, 0.0f, 0.65f),
-                H("Cervix", "The cervix is the lower narrow part of the uterus that opens into the vagina.", 0f, -0.48f, 0.75f),
+                H("Ilium", "The ilium is the broad, flared upper portion of each hip bone, forming the outer walls of the pelvic basin.", 0f, 0.75f, 0.8f),
                 H("Vagina", "The vagina is an elastic canal connecting the cervix to the outside of the body.", 0f, -0.82f, 0.55f),
                 H("Rectum", "The rectum is the final section of the large intestine, where stool is stored before it leaves the body.", 0.18f, -0.9f, 0.55f)
             }

@@ -1172,8 +1172,6 @@ MonoBehaviour:
     prefab: {fileID: 5749031943692034715, guid: 20b5f1518f147ea448187e10c62e9b8e, type: 3}
   - imageName: Kidney
     prefab: {fileID: 5009363985889193690, guid: 942ebdf9580acbf449c1be15b8d1923f, type: 3}
-  - imageName: Skeleton
-    prefab: {fileID: 5934225901316129276, guid: 0262288e6a4163345a30f1056954f592, type: 3}
   - imageName: Neuron
     prefab: {fileID: 9191515104569167329, guid: 0633949b1509476439c43d8a39678d5c, type: 3}
   - imageName: Female_Reproductive_system
