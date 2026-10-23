@@ -434,7 +434,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &149203043
 RectTransform:
   m_ObjectHideFlags: 0
@@ -470,7 +470,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   panelRoot: {fileID: 149203042}
   explanationText: {fileID: 1246316783}
-  apiKey: AQ.Ab8RN6IDzoRXGyfdhWLFnEwei1flApV1uXW23vwoUHEYEnhXKA
 --- !u!114 &149203045
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3130,7 +3129,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: AI explanation will appear here...
+  m_text: Learning information will appear here.
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

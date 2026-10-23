@@ -72,10 +72,14 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         string.Equals(organKey, "Kidney", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(organKey, "Lung", StringComparison.OrdinalIgnoreCase);
 
+    private bool UsesHotspotCameraFocus => UsesFocusedLabelPresentation ||
+        string.Equals(organKey, "Neuron", StringComparison.OrdinalIgnoreCase);
+
     // ARCore owns the device camera pose. Repositioning the model relative to
     // that camera creates a smooth, per-label orbit and zoom while preserving AR.
     private const float FocusDistance = 0.48f;
     private const float FocusZoom = 2.65f;
+    private const float NeuronDendritesFocusZoom = 4f;
     private const float OvariesFocusZoom = 2.9f;
     private const float FimbriaeFocusZoom = 3.25f;
     private const float UterineTubesFocusZoom = 2.9f;
@@ -114,7 +118,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         if (focusTransition != null)
             StopCoroutine(focusTransition);
         focusTransition = null;
-        if (hasBasePose && UsesFocusedLabelPresentation)
+        if (hasBasePose && UsesHotspotCameraFocus)
         {
             ApplyBasePose();
             hasBasePose = false;
@@ -291,7 +295,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         if (focusTransition != null)
             StopCoroutine(focusTransition);
         focusTransition = null;
-        if (hasBasePose && UsesFocusedLabelPresentation)
+        if (hasBasePose && UsesHotspotCameraFocus)
         {
             SetScreenLockPositionPaused(true);
             focusTransition = StartCoroutine(TransitionToPose(
@@ -1043,7 +1047,19 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         for (int i = 0; i < hotspots.Count; i++)
             hotspots[i].pin = CreatePin(i, circle);
         CreateInfoCard();
+        CreateLabelDismissButton();
         canvasObject.SetActive(false);
+    }
+
+    private void CreateLabelDismissButton()
+    {
+        Button dismiss = CreateButton(canvasRect, "Close Labels", "×", 42f, Accent);
+        RectTransform rect = dismiss.GetComponent<RectTransform>();
+        rect.anchorMin = rect.anchorMax = new Vector2(1f, 1f);
+        rect.pivot = new Vector2(1f, 1f);
+        rect.anchoredPosition = new Vector2(-24f, -24f);
+        rect.sizeDelta = new Vector2(64f, 64f);
+        dismiss.onClick.AddListener(Hide);
     }
 
     private RectTransform CreatePin(int index, Sprite circle)
@@ -1108,11 +1124,12 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         descriptionRect.offsetMin = new Vector2(22f, 16f);
         descriptionRect.offsetMax = new Vector2(-22f, -4f);
 
-        Button close = CreateButton(card.transform, "Close", "×", 58f, Accent);
+        Button close = CreateButton(card.transform, "Close", "×", 34f, Accent);
         RectTransform closeRect = close.GetComponent<RectTransform>();
-        closeRect.anchorMin = new Vector2(0.86f, 0.75f);
-        closeRect.anchorMax = new Vector2(0.98f, 0.96f);
-        closeRect.offsetMin = closeRect.offsetMax = Vector2.zero;
+        closeRect.anchorMin = closeRect.anchorMax = new Vector2(1f, 1f);
+        closeRect.pivot = new Vector2(1f, 1f);
+        closeRect.anchoredPosition = new Vector2(-12f, -12f);
+        closeRect.sizeDelta = new Vector2(52f, 52f);
         close.onClick.AddListener(() => card.SetActive(false));
         cardDescription.enableAutoSizing = true;
         cardDescription.fontSizeMin = 16f;
@@ -1148,7 +1165,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             string.Equals(hotspot.title, "Vagina", StringComparison.OrdinalIgnoreCase))
             hotspot.pin.transform.SetAsLastSibling();
 
-        if (UsesFocusedLabelPresentation)
+        if (UsesHotspotCameraFocus)
             FocusOnHotspot(hotspot);
         PositionInfoCard(hotspots[index].pin.anchoredPosition);
     }
@@ -1206,6 +1223,8 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         bool isAnus = string.Equals(hotspot.title, "Anus", StringComparison.OrdinalIgnoreCase);
         bool isRectum = string.Equals(hotspot.title, "Rectum", StringComparison.OrdinalIgnoreCase);
         bool isBrainstem = string.Equals(hotspot.title, "Brainstem", StringComparison.OrdinalIgnoreCase);
+        bool isNeuronDendrites = string.Equals(organKey, "Neuron", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(hotspot.title, "Dendrites", StringComparison.OrdinalIgnoreCase);
         // Keep the initial scanned angle for the uterus, bladder, rectum, and
         // brainstem so focus only magnifies and recenters the selected point.
         // For Anus use the model's inferior axis to show the pelvic floor.
@@ -1224,7 +1243,8 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         Quaternion targetLocalRotation = parent != null
             ? Quaternion.Inverse(parent.rotation) * targetWorldRotation
             : targetWorldRotation;
-        float focusZoom = isUterus ? UterusFocusZoom : isBladder ? BladderFocusZoom :
+        float focusZoom = isNeuronDendrites ? NeuronDendritesFocusZoom :
+            isUterus ? UterusFocusZoom : isBladder ? BladderFocusZoom :
             isRectum ? RectumFocusZoom :
             string.Equals(hotspot.title, "Ovaries", StringComparison.OrdinalIgnoreCase)
                 ? OvariesFocusZoom :

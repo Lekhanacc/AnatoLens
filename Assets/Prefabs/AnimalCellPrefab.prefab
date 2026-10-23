@@ -48,8 +48,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a2586e45a7f254a40802ebb35a21fc2a, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   rotationSpeed: 0.8
   rotateAroundVisualCenter: 0
 --- !u!114 &5593285123450345005
@@ -62,8 +62,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 09438293b1c4be94e9bb1d8087e8c6d2, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   zoomSpeed: 0.005
   minScale: 0.5
   maxScale: 2
@@ -77,8 +77,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9adb27fc240290249b538dd92e9e3ba2, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!114 &4718184265063936235
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -89,8 +89,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 20a991f7add556a43801e9b56e295831, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   maxTapDuration: 0.3
   maxTapMovement: 25
 --- !u!114 &2743723966118407149
@@ -103,8 +103,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 50ffd20042db58e4a9aba795f7bc6710, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   organName: Animal Cell
 --- !u!65 &1838576816629742188
 BoxCollider:
@@ -125,7 +125,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 0.1559, y: 0.1554, z: 0.1650}
+  m_Size: {x: 0.1559, y: 0.1554, z: 0.165}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &8575267162343679934
 GameObject:
@@ -185,35 +185,35 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2774220344278030320, guid: 174ecb83be2348bf9d2a96f6c33d861d, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.004326
+      value: 0.013229715
       objectReference: {fileID: 0}
     - target: {fileID: 2774220344278030320, guid: 174ecb83be2348bf9d2a96f6c33d861d, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -0.025412
+      value: -0.02667344
       objectReference: {fileID: 0}
     - target: {fileID: 2774220344278030320, guid: 174ecb83be2348bf9d2a96f6c33d861d, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -0.005050
+      value: -0.0053938255
       objectReference: {fileID: 0}
     - target: {fileID: 2774220344278030320, guid: 174ecb83be2348bf9d2a96f6c33d861d, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 1
+      value: 0.61413395
       objectReference: {fileID: 0}
     - target: {fileID: 2774220344278030320, guid: 174ecb83be2348bf9d2a96f6c33d861d, type: 3}
       propertyPath: m_LocalRotation.x
-      value: 0
+      value: -0.04819558
       objectReference: {fileID: 0}
     - target: {fileID: 2774220344278030320, guid: 174ecb83be2348bf9d2a96f6c33d861d, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: -0.06162963
       objectReference: {fileID: 0}
     - target: {fileID: 2774220344278030320, guid: 174ecb83be2348bf9d2a96f6c33d861d, type: 3}
       propertyPath: m_LocalRotation.z
-      value: 0
+      value: -0.78531426
       objectReference: {fileID: 0}
     - target: {fileID: 2774220344278030320, guid: 174ecb83be2348bf9d2a96f6c33d861d, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
+      value: -8.974
       objectReference: {fileID: 0}
     - target: {fileID: 2774220344278030320, guid: 174ecb83be2348bf9d2a96f6c33d861d, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
@@ -221,7 +221,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2774220344278030320, guid: 174ecb83be2348bf9d2a96f6c33d861d, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
+      value: -103.948
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
