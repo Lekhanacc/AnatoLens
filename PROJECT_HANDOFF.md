@@ -20,13 +20,14 @@ This guide records the current project structure, the important behavior already
 | --- | --- |
 | `Assets/Scenes/SampleScene.unity` | Active build scene. Contains the AR session, image manager/spawner, organ controls, and app UI. |
 | `Assets/ARapp.unity` | Older/alternate scene. It is not currently enabled in Build Settings and still has an `AnimalCell` image-to-prefab entry. Do not assume edits here affect the Android build. |
-| `Assets/MyImages.asset` | XR Reference Image Library assigned to the active scene's `ARTrackedImageManager`. It contains the Heart, Brain, Eye, Lung, Kidney, Neuron, and Female reproductive system markers. |
+| `Assets/MyImages.asset` | XR Reference Image Library assigned to the active scene's `ARTrackedImageManager`. It contains the Heart, Brain, Eye, Lung, Kidney, Neuron, Female reproductive system, Digestive system, Plant cell, Nephron, and Animal cell markers. |
 | `Assets/Prefabs/HeartPrefab.prefab` | Heart model, labels, heartbeat component, and interaction scripts. |
 | `Assets/Prefabs/BrainPrefab.prefab` | Brain model with rotate, zoom, reset, tap/explanation, and organ identity components. It does not have Heart labels or heartbeat animation. |
 | `Assets/Prefabs/EyePrefab.prefab` | Eye GLB model with rotate, zoom, reset, tap/explanation, and organ identity components. It has no anatomical labels or heartbeat animation yet. |
 | `Assets/Prefabs/LungPrefab.prefab` | Lung FBX with rotate, zoom, reset, tap/explanation, and organ identity components. |
 | `Assets/Prefabs/KidneyPrefab.prefab` | Kidney FBX with rotate, zoom, reset, tap/explanation, and organ identity components. |
 | `Assets/Prefabs/NeuronPrefab.prefab` | Neuron model prefab with interaction controls and organ identity. Verify the imported mesh/materials on device when changing its source asset. |
+| `Assets/Prefabs/AnimalCellPrefab.prefab` | Animal Cell GLB prefab with rotate, zoom, reset, tap, and organ identity components. |
 | `Assets/Prefabs/FemaleReproductiveSystemPrefab.prefab` | Female reproductive system model prefab with interaction controls, organ identity, and hotspot label support. |
 | `Assets/Models/Heart/` | Heart FBX and its texture assets. |
 | `Assets/Models/Brain/source/Rotten Brain.glb` | Imported Brain GLB model. Its extracted textures are under `Assets/Models/Brain/textures/`. |
@@ -34,6 +35,7 @@ This guide records the current project structure, the important behavior already
 | `Assets/Models/Lung/` | Lung FBX under `source/` and its textures under `textures/`. |
 | `Assets/Models/Kidney/kidney/` | Kidney FBX under `source/`, with its diffuse/normal textures and materials under `textures/` and `Materials/`. |
 | `Assets/Models/Female_Reproductive_system/` | Female reproductive system GLB source used by `FemaleReproductiveSystemPrefab`. |
+| `Assets/Models/Animal_cell/animal_cell.glb` | Animal Cell GLB by Forged1212, used by `AnimalCellPrefab`; the model contains colored materials and no separate image textures. Licensed CC BY 4.0; see the adjacent `ATTRIBUTION.txt`. |
 | `Assets/Brain.png` | Brain tracking/reference image currently used by `MyImages.asset`. |
 | `Assets/Eye.png` | Eye tracking/reference image currently used by `MyImages.asset`. |
 | `Assets/Lung.png` | Lung tracking/reference image used by `MyImages.asset`. Its physical size is unspecified so ARCore can estimate it. |
@@ -54,7 +56,7 @@ Unity `.meta` files contain asset GUIDs referenced by scenes, prefabs, and libra
 
 ## Existing app behavior
 
-- **Image-to-organ display:** `TrackedImageSpawner.cs` maintains tracked image references and spawned models. `SampleScene` maps `Heart`, `Brain`, `Eye`, `Lung`, `Kidney`, `Neuron`, and `Female_Reproductive_system` to their matching prefabs.
+- **Image-to-organ display:** `TrackedImageSpawner.cs` maintains tracked image references and spawned models. `SampleScene` maps each configured reference image to its matching prefab, including `Animal_cell` → `AnimalCellPrefab`.
 - **Touch rotation:** `TouchRotate.cs` rotates the organ on one-finger drags. Horizontal screen swipes drive world-Y rotation and vertical swipes drive world-X rotation consistently in portrait and landscape. World axes keep these gestures consistent even when an organ mesh/controller has a custom authored starting orientation.
 - **Pinch zoom:** `PinchZoom.cs` scales the controller object on two-finger pinches. Its current default limits are 0.5–2.0 times that object's authored scale.
 - **Reset:** `ResetHeart.cs` restores the controller's starting local scale and rotation. The class name is historical; it is used on the Brain prefab too. The global UI bridge `ResetButtonController.cs` finds a `ResetHeart` in the scene.
@@ -141,7 +143,8 @@ Use the same name as the reference image. Add an explicit entry rather than rely
 | Kidney prefab contents | `KidneyPrefab` → `KidneyModel` (rotate/zoom/reset/tap, fitted BoxCollider, and `ModelInfo` set to `Kidney`) → imported Kidney FBX hierarchy. It has no labels or heartbeat animation yet. |
 | Neuron marker and model | `Assets/Neuron.png` is registered as `Neuron`; its prefab is `Assets/Prefabs/NeuronPrefab.prefab`. The source folder contains GLB and 3ds Max assets. If replacing the source, update the prefab to reference the intended imported model and confirm its materials and hotspot positions on device. |
 | Female reproductive system marker and model | `Assets/Female_Reproductive_system.png` is registered as `Female_Reproductive_system`, sized 0.20 × 0.16 m. The GLB is under `Assets/Models/Female_Reproductive_system/`; `Assets/Prefabs/FemaleReproductiveSystemPrefab.prefab` is assigned in the scene and has hotspot content in `AnatomyHotspotOverlay.cs`. Check orientation and pin placement on device after model changes. |
-| Sample scene mapping | `Heart` → `HeartPrefab`; `Brain` → `BrainPrefab`; `Eye` → `EyePrefab`; `Lung` → `LungPrefab`; `Kidney` → `KidneyPrefab`; `Neuron` → `NeuronPrefab`; `Female_Reproductive_system` → `FemaleReproductiveSystemPrefab`. |
+| Animal cell marker and model | `Assets/Animal_cell.png` is registered as `Animal_cell` (0.20 × 0.1169 m); it maps to `AnimalCellPrefab`. The GLB is fitted to about 16.5 cm on its longest axis, centered, and uses its authored colored materials. The GLB has no separate textures. Verify its final appearance and scale on an Android device. Model attribution and license are in `Assets/Models/Animal_cell/ATTRIBUTION.txt`. |
+| Sample scene mapping | `Heart` → `HeartPrefab`; `Brain` → `BrainPrefab`; `Eye` → `EyePrefab`; `Lung` → `LungPrefab`; `Kidney` → `KidneyPrefab`; `Neuron` → `NeuronPrefab`; `Female_Reproductive_system` → `FemaleReproductiveSystemPrefab`; `Digestive_system` → `DigestiveSystemPrefab`; `Plant_cell` → `PlantCellPrefab`; `Nephron` → `NephronPrefab`; `Animal_cell` → `AnimalCellPrefab`. |
 
 Eye model attribution: “Eye” by germydan, [Sketchfab source](https://sketchfab.com/3d-models/eye-07c3674cfc26460d803f8f497f8c0f35), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The mesh is unchanged; it is uniformly scaled for AR display.
 
