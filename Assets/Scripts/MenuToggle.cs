@@ -10,6 +10,7 @@ public class MenuToggle : MonoBehaviour
 
     private RectTransform menuPanelRect;
     private RectTransform[] menuActions;
+    private RectTransform fixAction;
     private GameObject beatAction;
     private GameObject labelsAction;
     private RectTransform chatShortcut;
@@ -132,6 +133,15 @@ public class MenuToggle : MonoBehaviour
             FindMenuAction("LabelsToggleButton"),
             FindMenuAction("HeartToggleButton")
         };
+        fixAction = menuActions[1];
+        // FixButton is a sibling of MenuPanel in the scene hierarchy, unlike
+        // the other menu actions, so the panel-relative lookup may not find it.
+        if (fixAction == null)
+        {
+            GameObject sceneFixButton = GameObject.Find("FixButton");
+            if (sceneFixButton != null)
+                fixAction = sceneFixButton.GetComponent<RectTransform>();
+        }
 
         labelsAction = menuActions[2] != null ? menuActions[2].gameObject : null;
         beatAction = menuActions[3] != null ? menuActions[3].gameObject : null;
@@ -229,6 +239,16 @@ public class MenuToggle : MonoBehaviour
         robotImage.raycastTarget = true;
         robot.AddComponent<AssistantRobotIdleAnimation>();
         widget.transform.SetAsLastSibling();
+    }
+
+    public void SetFixButtonLocked(bool locked)
+    {
+        if (fixAction == null)
+            return;
+
+        TMP_Text label = fixAction.GetComponentInChildren<TMP_Text>(true);
+        if (label != null)
+            label.text = locked ? "RELEASE" : "FIX";
     }
 
     private void ConfigureShortcutButton(RectTransform buttonRect, Transform parent,

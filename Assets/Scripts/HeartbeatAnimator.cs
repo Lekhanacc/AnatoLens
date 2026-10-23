@@ -48,8 +48,15 @@ public class HeartbeatAnimator : MonoBehaviour
     // Wire this to a toggle button if you want manual on/off control.
     public void ToggleBeating()
     {
-        isBeating = !isBeating;
-        if (!isBeating)
-            transform.localScale = baseScale; // snap back to resting size when stopped
+        if (isBeating)
+            StopBeating();
+        else
+            isBeating = true;
+    }
+
+    public void StopBeating()
+    {
+        isBeating = false;
+        transform.localScale = baseScale;
     }
 }

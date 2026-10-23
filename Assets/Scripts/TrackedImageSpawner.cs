@@ -242,6 +242,9 @@ public class TrackedImageSpawner : MonoBehaviour
         {
             UnlockCurrentModel();
         }
+
+        if (MenuToggle.Instance != null)
+            MenuToggle.Instance.SetFixButtonLocked(isLocked);
     }
 
 
