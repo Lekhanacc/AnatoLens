@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ARApp Brain Model</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #17212d; color: #e8edf4; font: 14px system-ui, sans-serif; }
+    #view { width: 100%; height: 100%; display: block; }
+    #status { position: fixed; left: 16px; top: 14px; padding: 8px 12px; border-radius: 8px; background: #101820dd; pointer-events: none; }
+    #placement { position: fixed; z-index: 2; right: 16px; top: 14px; width: 300px; max-height: calc(100vh - 28px); overflow: auto; box-sizing: border-box; padding: 14px; border: 1px solid #526274; border-radius: 12px; background: #101820ed; }
+    #placement.collapsed { width: auto; }
+    #placement header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    #placement h2 { margin: 0 0 8px; font-size: 17px; }
+    #toggle { border: 0; color: white; background: transparent; font-size: 18px; cursor: pointer; }
+    #placement.collapsed .details { display: none; }
+    #placement p { margin: 0 0 10px; color: #c6d1df; line-height: 1.4; }
+    #labels { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    #labels button, #copy { border: 1px solid #526274; border-radius: 7px; padding: 7px; color: white; background: #26394d; cursor: pointer; }
+    #labels button.active { background: #147d86; border-color: #5de1dd; }
+    #placed { margin-top: 10px; font: 11px/1.5 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #copy { margin-top: 10px; width: 100%; }
+  </style>
+  <script type="importmap">
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/"}}
+  </script>
+</head>
+<body>
+  <div id="status">Loading Brain model…</div>
+  <aside id="placement">
+    <header><h2>Place Brain labels</h2><button id="toggle" type="button" aria-label="Collapse label controls">−</button></header>
+    <div class="details">
+      <p>Choose a label, then click its exact spot on the model. Drag to rotate and scroll to zoom. Collapse this panel while placing.</p>
+      <div id="labels"></div>
+      <div id="placed">No labels placed yet.</div>
+      <button id="copy" type="button">Copy Unity positions</button>
+    </div>
+  </aside>
+  <canvas id="view"></canvas>
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const canvas = document.querySelector('#view');
+    const status = document.querySelector('#status');
+    const labelPanel = document.querySelector('#labels');
+    const placedText = document.querySelector('#placed');
+    const placementPanel = document.querySelector('#placement');
+    const markerByLabel = new Map();
+    const labelNames = ['Frontal lobe', 'Parietal lobe', 'Temporal lobe', 'Occipital lobe', 'Cerebellum', 'Brainstem', 'Cerebrum'];
+    const placed = new Map();
+    let selectedLabel = 1;
+    let brainScene = null;
+    let brainMesh = null;
+    let brainModelGroup = null;
+    const markers = new THREE.Group();
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x17212d);
+    const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.001, 1000);
+    camera.position.set(0, 0, 0.35);
+    scene.add(new THREE.HemisphereLight(0xe8f1ff, 0x46352e, 2.0));
+    const key = new THREE.DirectionalLight(0xffffff, 3.0);
+    key.position.set(-1, 2, 3);
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xffc6ac, 1.4);
+    fill.position.set(2, -1, -2);
+    scene.add(fill);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.minDistance = 0.02;
+    controls.maxDistance = 2;
+
+    for (let i = 0; i < labelNames.length; i++) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = String(i + 1);
+      button.title = labelNames[i];
+      button.classList.toggle('active', i + 1 === selectedLabel);
+      button.addEventListener('click', () => {
+        selectedLabel = i + 1;
+        for (const item of labelPanel.children)
+          item.classList.toggle('active', Number(item.textContent) === selectedLabel);
+        status.textContent = `Label ${selectedLabel}: ${labelNames[selectedLabel - 1]} · click its spot`;
+      });
+      labelPanel.appendChild(button);
+    }
+
+    function renderPlacements() {
+      placedText.textContent = placed.size === 0 ? 'No labels placed yet.' :
+        [...placed.entries()].map(([number, p]) =>
+          `${number} ${labelNames[number - 1]}: (${p.x.toFixed(5)}, ${p.y.toFixed(5)}, ${p.z.toFixed(5)})`
+        ).join('\n');
+    }
+
+    document.querySelector('#copy').addEventListener('click', async () => {
+      const data = Object.fromEntries(placed);
+      await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+      status.textContent = 'Unity local positions copied';
+    });
+    document.querySelector('#toggle').addEventListener('click', event => {
+      placementPanel.classList.toggle('collapsed');
+      event.currentTarget.textContent = placementPanel.classList.contains('collapsed') ? '+' : '−';
+    });
+
+    new GLTFLoader().load('/Assets/Models/Brain/source/Rotten%20Brain.glb', gltf => {
+      brainScene = gltf.scene;
+      brainMesh = new THREE.Group();
+      brainMesh.position.set(0.0127, -0.064, 0.0226);
+      brainMesh.quaternion.set(0.0019995174, 0.012738613, -0.7195838, 0.6942859);
+      // The imported GLB carries a tiny root scale in this browser viewer;
+      // compensate here so the brain fills the viewport like the AR prefab.
+      brainMesh.scale.setScalar(0.01);
+      brainMesh.add(brainScene);
+      brainModelGroup = new THREE.Group();
+      brainModelGroup.quaternion.set(0.035832513, -0.6816006, -0.03253113, 0.7301222);
+      const scanPose = new THREE.Group();
+      scanPose.quaternion.set(0.59933245, -0.017941942, -0.029279144, 0.79976344);
+      scene.add(scanPose);
+      scanPose.add(brainModelGroup);
+      brainModelGroup.add(brainMesh);
+      scene.add(markers);
+
+      const bounds = new THREE.Box3().setFromObject(scanPose);
+      const center = bounds.getCenter(new THREE.Vector3());
+      scanPose.position.sub(center);
+      const sphere = bounds.getBoundingSphere(new THREE.Sphere());
+      const distance = sphere.radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 1.2;
+      camera.position.set(0, 0, distance);
+      controls.target.set(0, 0, 0);
+      controls.update();
+      status.textContent = `Label ${selectedLabel}: ${labelNames[selectedLabel - 1]} · click its spot`;
+    }, undefined, error => {
+      status.textContent = 'Could not load model: ' + error.message;
+      console.error(error);
+    });
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    canvas.addEventListener('click', event => {
+      if (brainScene == null || brainMesh == null || brainModelGroup == null)
+        return;
+      pointer.x = (event.clientX / innerWidth) * 2 - 1;
+      pointer.y = -(event.clientY / innerHeight) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hit = raycaster.intersectObject(brainScene, true)[0];
+      if (hit == null)
+        return;
+
+      // Convert the clicked mesh point into the exact BrainModel-local
+      // coordinates Unity expects, using the prefab's 0.0015 mesh scale.
+      const sourcePoint = brainMesh.worldToLocal(hit.point.clone());
+      sourcePoint.multiplyScalar(0.0015 / 0.01);
+      const unityMeshPosition = new THREE.Vector3(0.0127, -0.064, 0.0226);
+      const unityMeshRotation = new THREE.Quaternion(0.0019995174, 0.012738613, -0.7195838, 0.6942859);
+      const unityLocal = sourcePoint.applyQuaternion(unityMeshRotation).add(unityMeshPosition);
+      placed.set(selectedLabel, { x: unityLocal.x, y: unityLocal.y, z: unityLocal.z });
+
+      const color = new THREE.Color().setHSL((selectedLabel * 0.13) % 1, 0.85, 0.58);
+      const previousMarker = markerByLabel.get(selectedLabel);
+      if (previousMarker != null) {
+        markers.remove(previousMarker);
+        previousMarker.geometry.dispose();
+        previousMarker.material.dispose();
+      }
+      const marker = new THREE.Mesh(new THREE.SphereGeometry(0.0003, 12, 8),
+        new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.35 }));
+      marker.position.copy(hit.point);
+      markers.add(marker);
+      markerByLabel.set(selectedLabel, marker);
+      renderPlacements();
+      status.textContent = `Placed ${selectedLabel} ${labelNames[selectedLabel - 1]} · Unity local (${unityLocal.x.toFixed(5)}, ${unityLocal.y.toFixed(5)}, ${unityLocal.z.toFixed(5)})`;
+    });
+
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+    renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+  </script>
+</body>
+</html>

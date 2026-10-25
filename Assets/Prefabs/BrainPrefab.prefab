@@ -1,5 +1,60 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &675102338259968656
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4717515274096663807}
+  - component: {fileID: 5560136197149321406}
+  m_Layer: 0
+  m_Name: LabelAnchor_02
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4717515274096663807
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 675102338259968656}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.7631853, y: 0.34533742, z: 0.5395015, w: 0.085021}
+  m_LocalPosition: {x: 0.05007, y: -0.01076, z: 0.02815}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6673989880075202591}
+  m_LocalEulerAnglesHint: {x: -30.158, y: -117.812, z: -149.766}
+--- !u!114 &5560136197149321406
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 675102338259968656}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aef4ec6a68b4dbbb893ef145ba0a159, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  labelNumber: 2
+  labelTitle: Parietal lobe
+  description: The superior-posterior region of the cerebrum, posterior to the central
+    sulcus, superior to the lateral sulcus, and anterior to the parieto-occipital
+    sulcus.
+  locked: 1
+  focusZoom: 2.65
+  useCustomFocusDirection: 0
+  focusDirectionLocal: {x: 0, y: 0, z: 1}
+  popupOffset: {x: 0, y: 0}
+  visibilityTarget: {fileID: 705203654728648212}
 --- !u!1 &1729204085276218777
 GameObject:
   m_ObjectHideFlags: 0
@@ -27,13 +82,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1729204085276218777}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0.0019995174, y: 0.012738613, z: -0.7195838, w: 0.6942859}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.001, y: 0.001, z: 0.001}
+  m_LocalScale: {x: 0.0015, y: 0.0015, z: 0.0015}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 6673989880075202591}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 1.21, y: 0.849, z: -92.041}
 --- !u!33 &4293462959214365926
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -105,6 +160,59 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 76.08591, y: 85.46434, z: 99.10339}
   m_Center: {x: -0.18566132, y: 20.54142, z: 5.7021255}
+--- !u!1 &2068533862649321588
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8843958120269863021}
+  - component: {fileID: 3194849013346748486}
+  m_Layer: 0
+  m_Name: LabelAnchor_05
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8843958120269863021
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2068533862649321588}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.035832513, y: 0.6816006, z: 0.03253113, w: 0.7301222}
+  m_LocalPosition: {x: 0.00215, y: -0.10310, z: -0.00545}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6673989880075202591}
+  m_LocalEulerAnglesHint: {x: -5.547, y: 86.067, z: -0.077}
+--- !u!114 &3194849013346748486
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2068533862649321588}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aef4ec6a68b4dbbb893ef145ba0a159, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  labelNumber: 5
+  labelTitle: Cerebellum
+  description: Helps coordinate balance and precise movement.
+  locked: 1
+  focusZoom: 2.65
+  useCustomFocusDirection: 0
+  focusDirectionLocal: {x: 0, y: 0, z: 1}
+  popupOffset: {x: 0, y: 0}
+  visibilityTarget: {fileID: 705203654728648212}
 --- !u!1 &3742212306128251053
 GameObject:
   m_ObjectHideFlags: 0
@@ -129,14 +237,67 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3742212306128251053}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0.59933245, y: -0.017941942, z: -0.029279144, w: 0.79976344}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 6673989880075202591}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 73.255, y: -12.793, z: -13.721}
+--- !u!1 &4414932670105228458
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6573208254137307469}
+  - component: {fileID: 3762101389131202479}
+  m_Layer: 0
+  m_Name: LabelAnchor_06
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6573208254137307469
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4414932670105228458}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.035832513, y: 0.6816006, z: 0.03253113, w: 0.7301222}
+  m_LocalPosition: {x: -0.00856, y: -0.07184, z: 0.02708}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6673989880075202591}
+  m_LocalEulerAnglesHint: {x: -5.547, y: 86.067, z: -0.077}
+--- !u!114 &3762101389131202479
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4414932670105228458}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aef4ec6a68b4dbbb893ef145ba0a159, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  labelNumber: 6
+  labelTitle: Brainstem
+  description: Connects the brain with the spinal cord and regulates essential functions.
+  locked: 1
+  focusZoom: 2.65
+  useCustomFocusDirection: 0
+  focusDirectionLocal: {x: 0, y: 0, z: 1}
+  popupOffset: {x: 0, y: 0}
+  visibilityTarget: {fileID: 705203654728648212}
 --- !u!1 &5800240527173273957
 GameObject:
   m_ObjectHideFlags: 0
@@ -166,14 +327,21 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5800240527173273957}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0.035832513, y: -0.6816006, z: -0.03253113, w: 0.7301222}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 705203654728648212}
+  - {fileID: 8827575691017849847}
+  - {fileID: 4717515274096663807}
+  - {fileID: 5426752563737040635}
+  - {fileID: 2740284735126451922}
+  - {fileID: 8843958120269863021}
+  - {fileID: 6573208254137307469}
+  - {fileID: 7863929357025269337}
   m_Father: {fileID: 9222616967029484599}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0.457, y: -86.085, z: -5.529}
 --- !u!114 &2338843981249342655
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -187,6 +355,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rotationSpeed: 0.8
+  rotateAroundVisualCenter: 0
 --- !u!114 &2696088839486197241
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -241,3 +410,220 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   organName: Brain
+--- !u!1 &7759710905917819737
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5426752563737040635}
+  - component: {fileID: 3898064522830286494}
+  m_Layer: 0
+  m_Name: LabelAnchor_03
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5426752563737040635
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7759710905917819737}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.40307078, y: 0.4413038, z: -0.09533425, w: 0.79605055}
+  m_LocalPosition: {x: 0.03695, y: -0.12055, z: 0.02579}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6673989880075202591}
+  m_LocalEulerAnglesHint: {x: 46.541, y: 65.47, z: 17.25}
+--- !u!114 &3898064522830286494
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7759710905917819737}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aef4ec6a68b4dbbb893ef145ba0a159, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  labelNumber: 3
+  labelTitle: Temporal lobe
+  description: The inferior-lateral region of the cerebrum, inferior to the lateral
+    sulcus (Sylvian fissure) and anterior to the preoccipital notch on both the left
+    and right sides.
+  locked: 1
+  focusZoom: 2.65
+  useCustomFocusDirection: 0
+  focusDirectionLocal: {x: 0, y: 0, z: 1}
+  popupOffset: {x: 0, y: 0}
+  visibilityTarget: {fileID: 705203654728648212}
+--- !u!1 &7833692022715471168
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2740284735126451922}
+  - component: {fileID: 8513135768560832049}
+  m_Layer: 0
+  m_Name: LabelAnchor_04
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2740284735126451922
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7833692022715471168}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.035832513, y: 0.6816006, z: 0.03253113, w: 0.7301222}
+  m_LocalPosition: {x: 0.03562, y: -0.10430, z: -0.02365}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6673989880075202591}
+  m_LocalEulerAnglesHint: {x: -5.547, y: 86.067, z: -0.077}
+--- !u!114 &8513135768560832049
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7833692022715471168}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aef4ec6a68b4dbbb893ef145ba0a159, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  labelNumber: 4
+  labelTitle: Occipital lobe
+  description: Processes visual information.
+  locked: 1
+  focusZoom: 2.65
+  useCustomFocusDirection: 0
+  focusDirectionLocal: {x: 0, y: 0, z: 1}
+  popupOffset: {x: 0, y: 0}
+  visibilityTarget: {fileID: 705203654728648212}
+--- !u!1 &8076600356284040640
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8827575691017849847}
+  - component: {fileID: 6087977822622674008}
+  m_Layer: 0
+  m_Name: LabelAnchor_01
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8827575691017849847
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8076600356284040640}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.06847163, y: 0.72541296, z: -0.06688408, w: 0.6816262}
+  m_LocalPosition: {x: 0.07461, y: -0.05999, z: 0.10131}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6673989880075202591}
+  m_LocalEulerAnglesHint: {x: 10.975, y: 93.611, z: 0.476}
+--- !u!114 &6087977822622674008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8076600356284040640}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aef4ec6a68b4dbbb893ef145ba0a159, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  labelNumber: 1
+  labelTitle: Frontal lobe
+  description: The anterior-most region of the cerebrum, extending from the frontal
+    pole back to the central sulcus and inferiorly to the lateral sulcus (Sylvian
+    fissure).
+  locked: 1
+  focusZoom: 2.65
+  useCustomFocusDirection: 0
+  focusDirectionLocal: {x: 0, y: 0, z: 1}
+  popupOffset: {x: 0, y: 0}
+  visibilityTarget: {fileID: 705203654728648212}
+--- !u!1 &8277000545165949003
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7863929357025269337}
+  - component: {fileID: 4900305093771268014}
+  m_Layer: 0
+  m_Name: LabelAnchor_07
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7863929357025269337
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8277000545165949003}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.054411784, y: 0.71847427, z: 0.04259174, w: 0.6921129}
+  m_LocalPosition: {x: 0.09526025, y: 0.006018934, z: 0.018645061}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6673989880075202591}
+  m_LocalEulerAnglesHint: {x: -7.847, y: 92.218, z: -1.112}
+--- !u!114 &4900305093771268014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8277000545165949003}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9aef4ec6a68b4dbbb893ef145ba0a159, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  labelNumber: 7
+  labelTitle: Cerebrum
+  description: The largest brain region, supporting thought, sensation, and voluntary
+    action.
+  locked: 1
+  focusZoom: 2.65
+  useCustomFocusDirection: 0
+  focusDirectionLocal: {x: 0, y: 0, z: 1}
+  popupOffset: {x: 0, y: 0}
+  visibilityTarget: {fileID: 705203654728648212}

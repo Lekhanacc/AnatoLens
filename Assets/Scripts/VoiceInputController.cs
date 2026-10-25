@@ -24,10 +24,24 @@ public class VoiceInputController : MonoBehaviour
     private AudioClip recordedClip;
     private string micDevice;
     private bool isRecording = false;
+    private Image micButtonImage;
+    private Color micIdleColor = new Color(0.13f, 0.19f, 0.28f, 1f);
 
     // Wire this to MicButton's OnClick.
     public void OnMicButtonPressed()
     {
+        if (!isRecording && !HasOpenAIKey())
+        {
+            if (micButtonLabel != null)
+                micButtonLabel.text = "Voice";
+            SetButtonState(recording: false, transcribing: false);
+            const string message = "Voice needs a valid OpenAI API key in the MicButton settings. Paste the key into the VoiceInputController's API Key field in Unity.";
+            if (chatbot != null)
+                chatbot.ShowNotice(message);
+            Debug.LogError("[Voice] " + message);
+            return;
+        }
+
         if (!Permission.HasUserAuthorizedPermission(Permission.Microphone))
         {
             Permission.RequestUserPermission(Permission.Microphone);
@@ -35,7 +49,10 @@ public class VoiceInputController : MonoBehaviour
             return; // user needs to tap again after granting
         }
 
-        if (!isRecording) StartRecording();
+        if (!isRecording)
+        {
+            StartRecording();
+        }
         else StopRecordingAndSend();
 
         MenuToggle.CloseOpenMenu();
@@ -46,13 +63,24 @@ public class VoiceInputController : MonoBehaviour
         if (Microphone.devices.Length == 0)
         {
             Debug.LogError("[Voice] No microphone found on this device.");
+            if (chatbot != null)
+                chatbot.ShowNotice("No microphone was found. Connect or enable a microphone, then try Voice again.");
             return;
         }
 
         micDevice = Microphone.devices[0];
         recordedClip = Microphone.Start(micDevice, false, maxRecordSeconds, sampleRate);
+        if (recordedClip == null)
+        {
+            Debug.LogError("[Voice] The microphone could not start recording.");
+            if (chatbot != null)
+                chatbot.ShowNotice("The microphone could not start. Check AnatoLens microphone permission in Android settings.");
+            return;
+        }
+
         isRecording = true;
         if (micButtonLabel != null) micButtonLabel.text = "Stop";
+        SetButtonState(recording: true, transcribing: false);
     }
 
     void StopRecordingAndSend()
@@ -60,11 +88,15 @@ public class VoiceInputController : MonoBehaviour
         int lastPos = Microphone.GetPosition(micDevice);
         Microphone.End(micDevice);
         isRecording = false;
-        if (micButtonLabel != null) micButtonLabel.text = "🎤 Record";
+        if (micButtonLabel != null) micButtonLabel.text = "Voice";
+        SetButtonState(recording: false, transcribing: true);
 
         if (lastPos <= 0)
         {
             Debug.LogWarning("[Voice] No audio captured.");
+            SetButtonState(recording: false, transcribing: false);
+            if (chatbot != null)
+                chatbot.ShowNotice("I didn't capture any speech. Tap the microphone, speak, then tap it again to finish.");
             return;
         }
 
@@ -79,6 +111,7 @@ public class VoiceInputController : MonoBehaviour
     IEnumerator SendToWhisper(byte[] wavData)
     {
         if (micButtonLabel != null) micButtonLabel.text = "Transcribing...";
+        SetButtonState(recording: false, transcribing: true);
 
         WWWForm form = new WWWForm();
         form.AddBinaryData("file", wavData, "recording.wav", "audio/wav");
@@ -86,11 +119,12 @@ public class VoiceInputController : MonoBehaviour
 
         using (UnityWebRequest request = UnityWebRequest.Post(whisperUrl, form))
         {
-            request.SetRequestHeader("Authorization", "Bearer " + apiKey);
+            request.SetRequestHeader("Authorization", "Bearer " + apiKey.Trim());
 
             yield return request.SendWebRequest();
 
-            if (micButtonLabel != null) micButtonLabel.text = "🎤 Record";
+            if (micButtonLabel != null) micButtonLabel.text = "Voice";
+            SetButtonState(recording: false, transcribing: false);
 
             if (request.result == UnityWebRequest.Result.Success)
             {
@@ -107,8 +141,41 @@ public class VoiceInputController : MonoBehaviour
             else
             {
                 Debug.LogError("[Voice] Transcription failed: " + request.error + "\n" + request.downloadHandler.text);
+                string notice = request.responseCode == 401
+                    ? "OpenAI rejected the Voice API key. Check that the MicButton has an active OpenAI key."
+                    : request.responseCode == 429
+                        ? "Voice API usage or billing limit reached. Check your OpenAI API account."
+                        : "Voice transcription failed. Check the internet connection and try again.";
+                if (chatbot != null)
+                    chatbot.ShowNotice(notice);
             }
         }
+    }
+
+    private void SetButtonState(bool recording, bool transcribing)
+    {
+        if (micButtonImage == null && micButtonLabel != null)
+        {
+            Transform buttonTransform = micButtonLabel.transform.parent;
+            if (buttonTransform != null)
+                micButtonImage = buttonTransform.GetComponent<Image>();
+        }
+
+        if (micButtonImage == null)
+            return;
+
+        if (recording)
+            micButtonImage.color = new Color(0.78f, 0.16f, 0.22f, 1f);
+        else if (transcribing)
+            micButtonImage.color = new Color(0.08f, 0.52f, 0.58f, 1f);
+        else
+            micButtonImage.color = micIdleColor;
+    }
+
+    private bool HasOpenAIKey()
+    {
+        string key = apiKey != null ? apiKey.Trim() : "";
+        return key.StartsWith("sk-") && key.Length > 20;
     }
 
     string ParseTranscript(string json)

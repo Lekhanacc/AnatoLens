@@ -41,6 +41,11 @@ public class HeartTapDetector : MonoBehaviour
 
     void TryTriggerExplanation(Vector2 screenPos)
     {
+        // The numbered labels and their information card are screen-space UI;
+        // don't let their taps fall through to the model collider.
+        if (AnatomyHotspotOverlay.IsScreenPointOverOverlay(screenPos))
+            return;
+
         Ray ray = Camera.main.ScreenPointToRay(screenPos);
         if (Physics.Raycast(ray, out RaycastHit hit))
         {

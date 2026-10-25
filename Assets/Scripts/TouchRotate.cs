@@ -3,41 +3,83 @@ using UnityEngine;
 public class TouchRotate : MonoBehaviour
 {
     public float rotationSpeed = 0.8f;
+    public bool rotateAroundVisualCenter;
 
-void Update()
-{
-    if (Input.touchCount == 1)
+    private Vector3 visualCenterLocal;
+
+    private void Awake()
     {
+        if (rotateAroundVisualCenter)
+            visualCenterLocal = CalculateVisualCenterLocal();
+    }
+
+    void Update()
+    {
+        if (Input.touchCount != 1)
+            return;
+
         Touch touch = Input.GetTouch(0);
+        if (touch.phase != TouchPhase.Moved)
+            return;
 
-        if (touch.phase == TouchPhase.Moved)
+        // Use screen-relative swipe directions and world axes so an authored model
+        // orientation (such as Brain's) cannot change which axis each swipe uses.
+        Vector2 delta = touch.deltaPosition;
+        float rotY = -delta.x * rotationSpeed;
+        float rotX = delta.y * rotationSpeed;
+
+        if (rotateAroundVisualCenter)
         {
-            Vector2 delta = CompensateForOrientation(touch.deltaPosition);
-
-            float rotY = -delta.x * rotationSpeed;
-            float rotX = delta.y * rotationSpeed;
-
+            transform.RotateAround(transform.TransformPoint(visualCenterLocal),
+                Vector3.up, rotY);
+            transform.RotateAround(transform.TransformPoint(visualCenterLocal),
+                Vector3.right, rotX);
+        }
+        else
+        {
             transform.Rotate(Vector3.up, rotY, Space.World);
-            transform.Rotate(Vector3.right, rotX, Space.Self);
+            transform.Rotate(Vector3.right, rotX, Space.World);
         }
     }
-}
 
-Vector2 CompensateForOrientation(Vector2 rawDelta)
-{
-    switch (Screen.orientation)
+    private Vector3 CalculateVisualCenterLocal()
     {
-        case ScreenOrientation.LandscapeLeft:
-            return new Vector2(-rawDelta.y, rawDelta.x);
+        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+        Vector3 min = Vector3.positiveInfinity;
+        Vector3 max = Vector3.negativeInfinity;
+        bool found = false;
 
-        case ScreenOrientation.LandscapeRight:
-            return new Vector2(rawDelta.y, -rawDelta.x);
+        foreach (Renderer renderer in renderers)
+        {
+            Bounds meshBounds;
+            SkinnedMeshRenderer skinned = renderer as SkinnedMeshRenderer;
+            if (skinned != null)
+            {
+                meshBounds = skinned.localBounds;
+            }
+            else
+            {
+                MeshFilter filter = renderer.GetComponent<MeshFilter>();
+                if (filter == null || filter.sharedMesh == null)
+                    continue;
+                meshBounds = filter.sharedMesh.bounds;
+            }
 
-        case ScreenOrientation.PortraitUpsideDown:
-            return new Vector2(-rawDelta.x, -rawDelta.y);
+            Vector3 extents = meshBounds.extents;
+            for (int x = -1; x <= 1; x += 2)
+            for (int y = -1; y <= 1; y += 2)
+            for (int z = -1; z <= 1; z += 2)
+            {
+                Vector3 meshCorner = meshBounds.center +
+                    Vector3.Scale(extents, new Vector3(x, y, z));
+                Vector3 localCorner = transform.InverseTransformPoint(
+                    renderer.transform.TransformPoint(meshCorner));
+                min = Vector3.Min(min, localCorner);
+                max = Vector3.Max(max, localCorner);
+                found = true;
+            }
+        }
 
-        default:
-            return rawDelta;
+        return found ? (min + max) * 0.5f : Vector3.zero;
     }
-}
 }

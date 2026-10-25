@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 using System.Collections.Generic;
@@ -27,10 +28,13 @@ public class ChatbotController : MonoBehaviour
 
     private List<ChatMessage> conversation = new List<ChatMessage>();
     private bool isLoading = false;
+    private bool chatLayoutConfigured;
+    private ScrollRect chatScrollRect;
 
     void Awake()
     {
         Instance = this;
+        ConfigureChatLayout();
     }
 
     void OnDestroy()
@@ -41,36 +45,44 @@ public class ChatbotController : MonoBehaviour
 
     private string lastOrganName = null;
 
-public void OpenChat()
-{
-    string organName = ModelInfo.ActiveModel != null
-        ? ModelInfo.ActiveModel.organName
-        : "this organ";
-
-    if (organName != lastOrganName)
+    public void OpenChat()
     {
-        conversation.Clear();
+        string organName = ModelInfo.ActiveModel != null
+            ? ModelInfo.ActiveModel.organName
+            : "this organ";
 
-        conversation.Add(new ChatMessage
+        if (organName != lastOrganName)
         {
-            role = "system",
-            content = $"You are a friendly assistant helping a student understand the {organName} in an AR app. Keep answers short (2-4 sentences) and simple."
-        });
+            conversation.Clear();
 
-        chatHistoryText.text = "";
+            conversation.Add(new ChatMessage
+            {
+                role = "system",
+                content = $"You are a friendly assistant helping a student understand the {organName} in an AR app. Keep answers short (2-4 sentences) and simple."
+            });
 
-        lastOrganName = organName;
+            chatHistoryText.text = "";
+            lastOrganName = organName;
+        }
+
+        // Chat owns the overlay while it is open.
+        LabelToggleController.HideOpenLabels();
+        ExplanationPanelController.CloseOpenExplanation();
+        MenuToggle.CloseOpenMenu();
+        ConfigureChatLayout();
+        panelRoot.SetActive(true);
+        ScrollChatToBottom();
     }
-
-    // Chat owns the overlay while it is open.
-    LabelToggleController.HideOpenLabels();
-    ExplanationPanelController.CloseOpenExplanation();
-    MenuToggle.CloseOpenMenu();
-    panelRoot.SetActive(true);
-}
     public void CloseChat()
     {
         panelRoot.SetActive(false);
+    }
+
+    public void ShowNotice(string message)
+    {
+        OpenChat();
+        if (chatHistoryText != null)
+            AppendToHistory("AnatoLens", message);
     }
 
     public static void CloseOpenChat()
@@ -84,6 +96,13 @@ public void OpenChat()
     {
         string userText = inputField.text.Trim();
         if (string.IsNullOrEmpty(userText) || isLoading) return;
+
+        if (!IsOpenAIKeyConfigured())
+        {
+            AppendToHistory("Assistant",
+                "This doesn't look like an OpenAI API key. Add your OpenAI secret key (it starts with sk-) to the ChatPanel, ExplanationPanel, and MicButton settings.");
+            return;
+        }
 
         AppendToHistory("You", userText);
         conversation.Add(new ChatMessage { role = "user", content = userText });
@@ -115,7 +134,7 @@ public void OpenChat()
             request.uploadHandler = new UploadHandlerRaw(bodyRaw);
             request.downloadHandler = new DownloadHandlerBuffer();
             request.SetRequestHeader("Content-Type", "application/json");
-            request.SetRequestHeader("Authorization", "Bearer " + apiKey);
+            request.SetRequestHeader("Authorization", "Bearer " + apiKey.Trim());
 
             yield return request.SendWebRequest();
 
@@ -129,8 +148,13 @@ public void OpenChat()
             }
             else
             {
-                AppendToHistory("Assistant", "Sorry, I couldn't respond. Check your connection.");
-                Debug.LogError("[Chatbot] Request failed: " + request.error + "\n" + request.downloadHandler.text);
+                string message = request.responseCode == 401
+                    ? "OpenAI rejected the API key. Check that it is active and copied correctly."
+                    : request.responseCode == 429
+                        ? "OpenAI rate or billing limit reached. Check your API usage and billing settings."
+                        : "I couldn't reach OpenAI. Check your internet connection and try again.";
+                AppendToHistory("Assistant", message);
+                Debug.LogError("[Chatbot] Request failed (HTTP " + request.responseCode + "): " + request.error);
             }
         }
 
@@ -140,6 +164,227 @@ public void OpenChat()
     void AppendToHistory(string speaker, string message)
     {
         chatHistoryText.text += $"\n<b>{speaker}:</b> {message}\n";
+        StartCoroutine(RefreshChatLayoutAndScroll());
+    }
+
+    private bool IsOpenAIKeyConfigured()
+    {
+        string key = apiKey != null ? apiKey.Trim() : "";
+        return key.StartsWith("sk-") && key.Length > 20;
+    }
+
+    private void ConfigureChatLayout()
+    {
+        if (chatLayoutConfigured || panelRoot == null)
+            return;
+
+        RectTransform panelRect = panelRoot.GetComponent<RectTransform>();
+        if (panelRect != null)
+        {
+            panelRect.anchorMin = new Vector2(0.035f, 0.055f);
+            panelRect.anchorMax = new Vector2(0.965f, 0.945f);
+            panelRect.pivot = new Vector2(0.5f, 0.5f);
+            panelRect.anchoredPosition = Vector2.zero;
+            panelRect.offsetMin = Vector2.zero;
+            panelRect.offsetMax = Vector2.zero;
+        }
+
+        Image panelImage = panelRoot.GetComponent<Image>();
+        if (panelImage != null)
+        {
+            panelImage.color = new Color32(8, 17, 31, 248);
+            panelImage.raycastTarget = true;
+        }
+
+        RectTransform scrollRectTransform = GetChildRect("ChatScrollView");
+        SetStretchedRect(scrollRectTransform, new Vector2(0.04f, 0.18f),
+            new Vector2(0.96f, 0.82f));
+        if (scrollRectTransform != null)
+        {
+            chatScrollRect = scrollRectTransform.GetComponent<ScrollRect>();
+            if (chatScrollRect != null)
+            {
+                chatScrollRect.horizontal = false;
+                chatScrollRect.vertical = true;
+                chatScrollRect.verticalScrollbarVisibility =
+                    ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
+
+                if (chatScrollRect.content != null)
+                {
+                    ContentSizeFitter contentFitter =
+                        chatScrollRect.content.GetComponent<ContentSizeFitter>();
+                    if (contentFitter != null)
+                        contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+                }
+            }
+
+            Image scrollBackground = scrollRectTransform.GetComponent<Image>();
+            if (scrollBackground != null)
+                scrollBackground.color = new Color32(15, 31, 47, 235);
+        }
+
+        RectTransform inputRect = GetChildRect("ChatInputField");
+        SetStretchedRect(inputRect, new Vector2(0.04f, 0.035f),
+            new Vector2(0.75f, 0.14f));
+        if (inputRect != null)
+        {
+            Image inputBackground = inputRect.GetComponent<Image>();
+            if (inputBackground != null)
+                inputBackground.color = new Color32(239, 244, 248, 255);
+        }
+
+        if (inputField != null)
+        {
+            StyleInputText(inputField.textComponent, new Color32(20, 30, 40, 255));
+            StyleInputText(inputField.placeholder as TMP_Text,
+                new Color32(100, 115, 128, 255));
+        }
+
+        RectTransform sendRect = GetChildRect("SendButton");
+        SetStretchedRect(sendRect, new Vector2(0.78f, 0.035f),
+            new Vector2(0.96f, 0.14f));
+        if (sendRect != null)
+        {
+            Image sendImage = sendRect.GetComponent<Image>();
+            if (sendImage != null)
+                sendImage.color = new Color32(20, 126, 133, 255);
+
+            TMP_Text sendLabel = sendRect.GetComponentInChildren<TMP_Text>(true);
+            if (sendLabel != null)
+            {
+                StretchTextRect(sendLabel.rectTransform);
+                sendLabel.text = "Send";
+                sendLabel.fontSize = 27f;
+                sendLabel.fontStyle = FontStyles.Bold;
+                sendLabel.alignment = TextAlignmentOptions.Center;
+                sendLabel.color = Color.white;
+            }
+        }
+
+        RectTransform closeRect = GetChildRect("CloseChatButton");
+        if (closeRect != null)
+        {
+            closeRect.anchorMin = closeRect.anchorMax = new Vector2(0.96f, 0.94f);
+            closeRect.pivot = new Vector2(0.5f, 0.5f);
+            closeRect.anchoredPosition = Vector2.zero;
+            closeRect.sizeDelta = new Vector2(92f, 92f);
+
+            TMP_Text closeLabel = closeRect.GetComponentInChildren<TMP_Text>(true);
+            if (closeLabel != null)
+            {
+                StretchTextRect(closeLabel.rectTransform);
+                closeLabel.text = "×";
+                closeLabel.fontSize = 42f;
+                closeLabel.alignment = TextAlignmentOptions.Center;
+            }
+        }
+
+        if (chatHistoryText != null)
+        {
+            chatHistoryText.fontSize = 30f;
+            chatHistoryText.enableAutoSizing = false;
+            chatHistoryText.enableWordWrapping = true;
+            chatHistoryText.overflowMode = TextOverflowModes.Overflow;
+            chatHistoryText.alignment = TextAlignmentOptions.TopLeft;
+            chatHistoryText.raycastTarget = false;
+
+            RectTransform historyRect = chatHistoryText.rectTransform;
+            historyRect.anchorMin = new Vector2(0f, 1f);
+            historyRect.anchorMax = new Vector2(1f, 1f);
+            historyRect.pivot = new Vector2(0f, 1f);
+            historyRect.anchoredPosition = new Vector2(24f, -20f);
+            historyRect.sizeDelta = new Vector2(-48f, 100f);
+
+            ContentSizeFitter textFitter =
+                chatHistoryText.GetComponent<ContentSizeFitter>();
+            if (textFitter == null)
+                textFitter = chatHistoryText.gameObject.AddComponent<ContentSizeFitter>();
+            textFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            textFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        }
+
+        Transform header = panelRoot.transform.Find("ChatHeader");
+        if (header == null)
+        {
+            GameObject headerObject = new GameObject("ChatHeader", typeof(RectTransform),
+                typeof(TextMeshProUGUI));
+            headerObject.transform.SetParent(panelRoot.transform, false);
+            header = headerObject.transform;
+        }
+
+        RectTransform headerRect = header.GetComponent<RectTransform>();
+        headerRect.anchorMin = headerRect.anchorMax = new Vector2(0.06f, 0.93f);
+        headerRect.pivot = new Vector2(0f, 0.5f);
+        headerRect.anchoredPosition = new Vector2(20f, 0f);
+        headerRect.sizeDelta = new Vector2(650f, 80f);
+        TMP_Text headerText = header.GetComponent<TMP_Text>();
+        headerText.text = "Ask AnatoLens";
+        headerText.font = TMP_Settings.defaultFontAsset;
+        headerText.fontSize = 36f;
+        headerText.fontStyle = FontStyles.Bold;
+        headerText.color = Color.white;
+        headerText.alignment = TextAlignmentOptions.MidlineLeft;
+        headerText.raycastTarget = false;
+
+        chatLayoutConfigured = true;
+    }
+
+    private RectTransform GetChildRect(string childName)
+    {
+        Transform child = panelRoot != null ? panelRoot.transform.Find(childName) : null;
+        return child != null ? child.GetComponent<RectTransform>() : null;
+    }
+
+    private static void SetStretchedRect(RectTransform rect, Vector2 anchorMin,
+        Vector2 anchorMax)
+    {
+        if (rect == null)
+            return;
+
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = Vector2.zero;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+    }
+
+    private static void StretchTextRect(RectTransform rect)
+    {
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.anchoredPosition = Vector2.zero;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+    }
+
+    private static void StyleInputText(TMP_Text text, Color color)
+    {
+        if (text == null)
+            return;
+
+        text.fontSize = 28f;
+        text.enableAutoSizing = false;
+        text.color = color;
+    }
+
+    private void ScrollChatToBottom()
+    {
+        if (chatScrollRect != null)
+            StartCoroutine(RefreshChatLayoutAndScroll());
+    }
+
+    private IEnumerator RefreshChatLayoutAndScroll()
+    {
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+        if (chatHistoryText != null)
+            chatHistoryText.rectTransform.SetSizeWithCurrentAnchors(
+                RectTransform.Axis.Vertical, chatHistoryText.preferredHeight + 24f);
+        Canvas.ForceUpdateCanvases();
+        if (chatScrollRect != null)
+            chatScrollRect.verticalNormalizedPosition = 0f;
     }
 
     void RemoveLastLine()

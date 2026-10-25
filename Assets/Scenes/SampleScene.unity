@@ -434,7 +434,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &149203043
 RectTransform:
   m_ObjectHideFlags: 0
@@ -470,7 +470,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   panelRoot: {fileID: 149203042}
   explanationText: {fileID: 1246316783}
-  apiKey: YOUR_API_KEY_HERE
 --- !u!114 &149203045
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1076,6 +1075,7 @@ RectTransform:
   - {fileID: 149203043}
   - {fileID: 2072534685}
   - {fileID: 223974227}
+  - {fileID: 1796710386}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -1165,6 +1165,24 @@ MonoBehaviour:
     prefab: {fileID: 6167502639423310338, guid: e87fe1eb00c810843b28a68176dafb94, type: 3}
   - imageName: Brain
     prefab: {fileID: 3742212306128251053, guid: 40bd7bf328ba7c145979b3b2023c2617, type: 3}
+  - imageName: Eye
+    prefab: {fileID: 5667250002636836855, guid: e615e24223e1276488ef30beb4ba1306, type: 3}
+  - imageName: Lung
+    prefab: {fileID: 5749031943692034715, guid: 20b5f1518f147ea448187e10c62e9b8e, type: 3}
+  - imageName: Kidney
+    prefab: {fileID: 5009363985889193690, guid: 942ebdf9580acbf449c1be15b8d1923f, type: 3}
+  - imageName: Female_Reproductive_system
+    prefab: {fileID: 588441262182873442, guid: 586c198d54568414594153769b354445, type: 3}
+  - imageName: Digestive_system
+    prefab: {fileID: 625436024125035039, guid: 06ef26e694a19b94d9a091b0eed5f722, type: 3}
+  - imageName: Plant_cell
+    prefab: {fileID: 8575267162343679934, guid: ac9d617bf4fdb5c42ae973701dc11ac7, type: 3}
+  - imageName: Neuron
+    prefab: {fileID: 5742976801621650626, guid: b58913e260f2b384d8fc9ec9ff24800a, type: 3}
+  - imageName: Nephron
+    prefab: {fileID: 5169467273439630452, guid: 7a1a9715c6375ba418126f7e621f0122, type: 3}
+  - imageName: Animal_cell
+    prefab: {fileID: 8575267162343679934, guid: b95dd31703d64daa9e14fa1ef5843fdf, type: 3}
 --- !u!114 &254885135
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1302,7 +1320,7 @@ MonoBehaviour:
   panelRoot: {fileID: 331940579}
   chatHistoryText: {fileID: 782081604}
   inputField: {fileID: 173668040}
-  apiKey: YOUR_API_KEY_HERE
+  apiKey: AQ.Ab8RN6IDzoRXGyfdhWLFnEwei1flApV1uXW23vwoUHEYEnhXKA
 --- !u!224 &331940581
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3111,7 +3129,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: AI explanation will appear here...
+  m_text: Learning information will appear here.
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -3655,7 +3673,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   chatbot: {fileID: 331940580}
   micButtonLabel: {fileID: 1654130856}
-  apiKey: YOUR_API_KEY_HERE
+  apiKey: AQ.Ab8RN6IDzoRXGyfdhWLFnEwei1flApV1uXW23vwoUHEYEnhXKA
 --- !u!114 &1567300517
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4273,13 +4291,13 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1175538628}
-  m_Father: {fileID: 2072534685}
+  m_Father: {fileID: 252164485}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 128, y: -232}
-  m_SizeDelta: {x: 160, y: 30}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0.5, y: 0}
+  m_AnchorMax: {x: 0.5, y: 0}
+  m_AnchoredPosition: {x: 200, y: 50}
+  m_SizeDelta: {x: 180, y: 50}
+  m_Pivot: {x: 0.5, y: 0}
 --- !u!114 &1796710387
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5568,7 +5586,6 @@ RectTransform:
   - {fileID: 1182845256}
   - {fileID: 1942891155}
   - {fileID: 1590297504}
-  - {fileID: 1796710386}
   - {fileID: 1567300515}
   - {fileID: 645691589}
   m_Father: {fileID: 252164485}

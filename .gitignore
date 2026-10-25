@@ -27,5 +27,7 @@ sysinfo.txt
 
 *.apk
 *.aab
-*.unitypackageARApp_BurstDebugInformation_DoNotShip/ 
-ARApp_BurstDebugInformation_DoNotShip/ 
+*.unitypackage
+*BurstDebugInformation_DoNotShip/
+Thumbs.db
+Assets/*MaterialCheck.txt*

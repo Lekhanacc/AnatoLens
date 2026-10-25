@@ -74,7 +74,7 @@ float4 frag_meta (v2f_meta i) : SV_Target
     // we're interested in diffuse & specular colors,
     // and surface roughness to produce final albedo.
 
-#ifdef _SPECGLOSSMAP
+#if defined(_METALLICGLOSSMAP) || defined(_SPECGLOSSMAP)
     FragmentCommonData data = UNITY_SETUP_BRDF_INPUT (i.uv,i.uv,i.color);
 #else
     FragmentCommonData data = UNITY_SETUP_BRDF_INPUT (i.uv,i.color);

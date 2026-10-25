@@ -154,10 +154,7 @@ public class TrackedImageSpawner : MonoBehaviour
     // Make sure it's actually attached to THIS tracked image.
     if (existing.transform.parent != trackedImage.transform)
     {
-        existing.transform.SetParent(trackedImage.transform, false);
-        existing.transform.localPosition = Vector3.zero;
-        existing.transform.localRotation = Quaternion.identity;
-        existing.transform.localScale = Vector3.one;
+        PrepareModelForTrackedImage(existing.transform, trackedImage.transform, imageName);
     }
 
     existing.SetActive(true);
@@ -180,15 +177,29 @@ public class TrackedImageSpawner : MonoBehaviour
 
         GameObject obj = Instantiate(prefab);
 
+        AnatomyHotspotOverlay hotspotOverlay = obj.GetComponent<AnatomyHotspotOverlay>();
+        if (hotspotOverlay == null)
+            hotspotOverlay = obj.AddComponent<AnatomyHotspotOverlay>();
+        hotspotOverlay.Configure(imageName);
+
         // Attach the same heart model to every recognized image in the
         // reference library unless that image has a specific prefab override.
-        obj.transform.SetParent(trackedImage.transform, false);
-        obj.transform.localPosition = Vector3.zero;
-        obj.transform.localRotation = Quaternion.identity;
-        obj.transform.localScale = Vector3.one;
+        PrepareModelForTrackedImage(obj.transform, trackedImage.transform, imageName);
 
         spawnedObjects.Add(imageName, obj);
         Debug.Log("[AR] Prefab spawned on tracked image: " + imageName);
+    }
+
+    private static void PrepareModelForTrackedImage(Transform model, Transform trackedImage,
+        string imageName)
+    {
+        model.SetParent(trackedImage, false);
+        model.localPosition = Vector3.zero;
+        // The lung prefab needs its authored viewing-side rotation. The heart's
+        // scan view was already calibrated, so keep the tracked-image default.
+        if (!string.Equals(imageName, "Lung", System.StringComparison.OrdinalIgnoreCase))
+            model.localRotation = Quaternion.identity;
+        model.localScale = Vector3.one;
     }
 
     GameObject ResolvePrefab(string imageName)
@@ -200,7 +211,10 @@ public class TrackedImageSpawner : MonoBehaviour
         // is the default, so newly added library images need no extra mapping.
         foreach (var item in imagePrefabs)
         {
-            if (item != null && item.imageName == imageName && item.prefab != null)
+            // An exact mapping is authoritative, including an intentionally empty
+            // prefab slot while an organ model is still being prepared. This
+            // prevents a new marker from accidentally showing the fallback organ.
+            if (item != null && item.imageName == imageName)
                 return item.prefab;
         }
 
@@ -228,6 +242,9 @@ public class TrackedImageSpawner : MonoBehaviour
         {
             UnlockCurrentModel();
         }
+
+        if (MenuToggle.Instance != null)
+            MenuToggle.Instance.SetFixButtonLocked(isLocked);
     }
 
 
