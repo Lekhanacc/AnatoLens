@@ -41,6 +41,13 @@ public class HeartTapDetector : MonoBehaviour
 
     void TryTriggerExplanation(Vector2 screenPos)
     {
+        // Label mode owns taps until its × control closes the overlay. Checking
+        // only the pin/card rectangle is racy because AR projection can move a
+        // pin between touch-down and touch-up, letting the same tap fall through
+        // to this model-collider listener.
+        if (AnatomyHotspotOverlay.IsOverlayVisible)
+            return;
+
         // The numbered labels and their information card are screen-space UI;
         // don't let their taps fall through to the model collider.
         if (AnatomyHotspotOverlay.IsScreenPointOverOverlay(screenPos))

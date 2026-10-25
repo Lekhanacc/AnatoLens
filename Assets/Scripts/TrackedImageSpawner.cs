@@ -282,6 +282,18 @@ public class TrackedImageSpawner : MonoBehaviour
     if (follower == null)
         follower = obj.AddComponent<ScreenLockFollower>();
 
+    // The nephron's fine, branching geometry makes small AR camera-pose noise
+    // especially noticeable after fixing it to the screen. Ignore sub-centimeter
+    // pose changes and use a slightly longer filter for this model only.
+    ModelInfo modelInfo = obj.GetComponent<ModelInfo>();
+    if (modelInfo != null &&
+        System.String.Equals(modelInfo.organName, "Nephron",
+            System.StringComparison.OrdinalIgnoreCase))
+    {
+        follower.followDeadZone = Mathf.Max(follower.followDeadZone, 0.01f);
+        follower.positionSmoothTime = Mathf.Max(follower.positionSmoothTime, 0.18f);
+    }
+
     // Preserve the calibrated root/HeartModel orientation exactly as it appeared
     // when the model was locked. ScreenLockFollower changes position only.
     follower.SnapToCamera();

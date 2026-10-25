@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class TouchRotate : MonoBehaviour
 {
@@ -6,6 +7,11 @@ public class TouchRotate : MonoBehaviour
     public bool rotateAroundVisualCenter;
 
     private Vector3 visualCenterLocal;
+    private bool activeTouchStartedOverUI;
+    private EventSystem uiEventSystem;
+    private PointerEventData uiPointerData;
+    private readonly System.Collections.Generic.List<RaycastResult> uiRaycastResults =
+        new System.Collections.Generic.List<RaycastResult>();
 
     private void Awake()
     {
@@ -19,7 +25,21 @@ public class TouchRotate : MonoBehaviour
             return;
 
         Touch touch = Input.GetTouch(0);
-        if (touch.phase != TouchPhase.Moved)
+
+        if (touch.phase == TouchPhase.Began)
+        {
+            activeTouchStartedOverUI = IsPointerOverUI(touch.position);
+            return;
+        }
+
+        if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
+        {
+            activeTouchStartedOverUI = false;
+            return;
+        }
+
+        if (touch.phase != TouchPhase.Moved || activeTouchStartedOverUI ||
+            IsPointerOverUI(touch.position))
             return;
 
         // Use screen-relative swipe directions and world axes so an authored model
@@ -40,6 +60,23 @@ public class TouchRotate : MonoBehaviour
             transform.Rotate(Vector3.up, rotY, Space.World);
             transform.Rotate(Vector3.right, rotX, Space.World);
         }
+    }
+
+    private bool IsPointerOverUI(Vector2 screenPosition)
+    {
+        EventSystem eventSystem = EventSystem.current;
+        if (eventSystem == null)
+            return false;
+
+        if (uiPointerData == null || uiEventSystem != eventSystem)
+        {
+            uiEventSystem = eventSystem;
+            uiPointerData = new PointerEventData(eventSystem);
+        }
+        uiPointerData.position = screenPosition;
+        uiRaycastResults.Clear();
+        eventSystem.RaycastAll(uiPointerData, uiRaycastResults);
+        return uiRaycastResults.Count > 0;
     }
 
     private Vector3 CalculateVisualCenterLocal()

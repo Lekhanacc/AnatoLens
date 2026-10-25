@@ -21,6 +21,9 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         public Vector3 explicitLocalPosition;
         public bool hasExplicitLocalPosition;
         public RectTransform pin;
+        public Vector2 smoothedPinPosition;
+        public Vector2 pinPositionVelocity;
+        public bool hasSmoothedPinPosition;
     }
 
     private static readonly Color Ink = new Color32(8, 15, 24, 245);
@@ -30,6 +33,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
 
     public static AnatomyHotspotOverlay Active { get; private set; }
     public bool HasHotspots => hotspots != null && hotspots.Count > 0;
+    public static bool IsOverlayVisible => Active != null && Active.visible;
 
     private readonly List<Hotspot> hotspots = new List<Hotspot>();
     private readonly List<MeshCollider> femaleVisibilityColliders = new List<MeshCollider>();
@@ -63,6 +67,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
     private Vector3 baseLocalScale;
     private Quaternion baseWorldRotation;
     private bool hasBasePose;
+    private float nextVisibilityRefreshTime;
 
     private bool UsesFocusedLabelPresentation =>
         string.Equals(organKey, "Female_Reproductive_system", StringComparison.OrdinalIgnoreCase) ||
@@ -87,6 +92,8 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
     private const float BladderFocusZoom = 3.45f;
     private const float RectumFocusZoom = 3.4f;
     private const float FocusDuration = 0.7f;
+    private const float VisibilityRefreshInterval = 0.05f;
+    private const float FemalePinSmoothingTime = 0.045f;
     private const float CardWidth = 620f;
     private const float CardHeight = 460f;
     private const float FimbriaeCardWidth = 360f;
@@ -153,6 +160,12 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         if (arCamera == null)
             return;
 
+        // The reproductive model has many mesh visibility colliders. Refresh
+        // occlusion at 20 Hz rather than synchronizing every imported mesh on
+        // every rendered frame; LateUpdate still projects visible pins each frame.
+        if (Time.unscaledTime < nextVisibilityRefreshTime)
+            return;
+        nextVisibilityRefreshTime = Time.unscaledTime + VisibilityRefreshInterval;
         if (HasVisibilityTargets())
             Physics.SyncTransforms();
 
@@ -211,6 +224,8 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             }
             if (string.Equals(hotspots[i].title, "Ovaries", StringComparison.OrdinalIgnoreCase))
                 ovariesPinVisible = onScreen;
+            if (onScreen && !hotspots[i].pin.gameObject.activeSelf)
+                hotspots[i].hasSmoothedPinPosition = false;
             hotspots[i].pin.gameObject.SetActive(onScreen);
         }
     }
@@ -239,6 +254,24 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
                     canvasRect, screen, null, out Vector2 local))
                 continue;
 
+            if (string.Equals(organKey, "Female_Reproductive_system",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                if (!hotspot.hasSmoothedPinPosition)
+                {
+                    hotspot.smoothedPinPosition = local;
+                    hotspot.pinPositionVelocity = Vector2.zero;
+                    hotspot.hasSmoothedPinPosition = true;
+                }
+                else
+                {
+                    hotspot.smoothedPinPosition = Vector2.SmoothDamp(
+                        hotspot.smoothedPinPosition, local,
+                        ref hotspot.pinPositionVelocity, FemalePinSmoothingTime,
+                        Mathf.Infinity, Time.unscaledDeltaTime);
+                }
+                local = hotspot.smoothedPinPosition;
+            }
             hotspot.pin.anchoredPosition = local;
             if (selectedIndex == i && card != null && card.activeSelf)
                 PositionInfoCard(local);
@@ -280,6 +313,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             femaleSurfaceNormalsInitialized = true;
         }
         visible = true;
+        nextVisibilityRefreshTime = 0f;
         SetVisibilityCollidersEnabled(true);
         selectedIndex = -1;
         card.SetActive(false);
