@@ -158,6 +158,7 @@ public class TrackedImageSpawner : MonoBehaviour
     }
 
     existing.SetActive(true);
+    ActivateLabelsFor(existing);
     return;
 }
 
@@ -185,9 +186,21 @@ public class TrackedImageSpawner : MonoBehaviour
         // Attach the same heart model to every recognized image in the
         // reference library unless that image has a specific prefab override.
         PrepareModelForTrackedImage(obj.transform, trackedImage.transform, imageName);
+        ActivateLabelsFor(obj);
 
         spawnedObjects.Add(imageName, obj);
         Debug.Log("[AR] Prefab spawned on tracked image: " + imageName);
+    }
+
+    private static void ActivateLabelsFor(GameObject model)
+    {
+        if (model == null)
+            return;
+
+        AnatomyHotspotOverlay overlay =
+            model.GetComponentInChildren<AnatomyHotspotOverlay>(true);
+        if (overlay != null)
+            overlay.MakeActiveForTrackedModel();
     }
 
     private static void PrepareModelForTrackedImage(Transform model, Transform trackedImage,
@@ -218,6 +231,17 @@ public class TrackedImageSpawner : MonoBehaviour
                 return item.prefab;
         }
 
+        // Reference-image names can vary in capitalization or use spaces where
+        // the prefab list uses underscores. Match those names before falling
+        // back to the default prefab, otherwise a cell marker can show Heart.
+        string normalizedImageName = NormalizeImageName(imageName);
+        foreach (var item in imagePrefabs)
+        {
+            if (item != null && item.prefab != null &&
+                NormalizeImageName(item.imageName) == normalizedImageName)
+                return item.prefab;
+        }
+
         foreach (var item in imagePrefabs)
         {
             if (item != null && item.prefab != null)
@@ -225,6 +249,18 @@ public class TrackedImageSpawner : MonoBehaviour
         }
 
         return null;
+    }
+
+    private static string NormalizeImageName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        System.Text.StringBuilder result = new System.Text.StringBuilder();
+        foreach (char character in value)
+            if (char.IsLetterOrDigit(character))
+                result.Append(char.ToLowerInvariant(character));
+        return result.ToString();
     }
 
 

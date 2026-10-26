@@ -12,6 +12,8 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
     {
         public string title;
         public string description;
+        public string targetName;
+        public Vector3 targetOffset;
         public Vector3 normalizedPosition;
         public Transform anchorTransform;
         public Transform occlusionTarget;
@@ -30,6 +32,12 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
 
     public static AnatomyHotspotOverlay Active { get; private set; }
     public bool HasHotspots => hotspots != null && hotspots.Count > 0;
+
+    public void MakeActiveForTrackedModel()
+    {
+        if (HasHotspots && isActiveAndEnabled)
+            Active = this;
+    }
 
     private readonly List<Hotspot> hotspots = new List<Hotspot>();
     private readonly List<MeshCollider> femaleVisibilityColliders = new List<MeshCollider>();
@@ -55,6 +63,7 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
     private bool femaleSurfaceNormalsInitialized;
     private int selectedIndex = -1;
     private string organKey;
+    private Transform hotspotSpace;
     private Bounds localBounds;
     private RectTransform cardRect;
     private Coroutine focusTransition;
@@ -70,10 +79,14 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         string.Equals(organKey, "Brain", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(organKey, "Eye", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(organKey, "Kidney", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(organKey, "Lung", StringComparison.OrdinalIgnoreCase);
+        string.Equals(organKey, "Lung", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(organKey, "Neuron", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(organKey, "Digestive_system", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(organKey, "Plant_cell", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(organKey, "Nephron", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(organKey, "Animal_cell", StringComparison.OrdinalIgnoreCase);
 
-    private bool UsesHotspotCameraFocus => UsesFocusedLabelPresentation ||
-        string.Equals(organKey, "Neuron", StringComparison.OrdinalIgnoreCase);
+    private bool UsesHotspotCameraFocus => UsesFocusedLabelPresentation;
 
     // ARCore owns the device camera pose. Repositioning the model relative to
     // that camera creates a smooth, per-label orbit and zoom while preserving AR.
@@ -99,17 +112,53 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
 
     public void Configure(string key)
     {
-        organKey = key;
+        organKey = NormalizeOrganKey(key);
+        TouchRotate rotationController = GetComponentInChildren<TouchRotate>(true);
+        hotspotSpace = rotationController != null ? rotationController.transform : transform;
         CreateHotspots();
         CreateVisibilityColliders();
         CreateOverlay();
         if (HasHotspots)
         {
-            Active = this;
+            MakeActiveForTrackedModel();
             // Hide the older heart-only text labels; the new pins are the label UI.
             LabelToggleController legacy = GetComponentInChildren<LabelToggleController>(true);
             if (legacy != null && legacy.labelsContainer != null)
                 legacy.labelsContainer.SetActive(false);
+        }
+    }
+
+    private static string NormalizeOrganKey(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return string.Empty;
+
+        System.Text.StringBuilder compactBuilder = new System.Text.StringBuilder();
+        foreach (char character in value)
+            if (char.IsLetterOrDigit(character))
+                compactBuilder.Append(char.ToLowerInvariant(character));
+        string compact = compactBuilder.ToString();
+
+        switch (compact)
+        {
+            case "plantcell": return "Plant_cell";
+            case "animalcell": return "Animal_cell";
+            case "nephron": return "Nephron";
+            case "femalereproductivesystem": return "Female_Reproductive_system";
+            case "digestivesystem": return "Digestive_system";
+            default:
+            {
+                foreach (string knownKey in OrganHotspots.Keys)
+                {
+                    System.Text.StringBuilder knownBuilder = new System.Text.StringBuilder();
+                    foreach (char character in knownKey)
+                        if (char.IsLetterOrDigit(character))
+                            knownBuilder.Append(char.ToLowerInvariant(character));
+                    if (compact == knownBuilder.ToString())
+                        return knownKey;
+                }
+                return value.Trim().Replace(' ', '_');
+            }
         }
     }
 
@@ -365,7 +414,8 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
                 anchor = new GameObject("LabelAnchor_" + (i + 1).ToString("00")).transform;
                 anchor.SetParent(transform, false);
                 AttachBrainRootAnchorToSurface(anchor,
-                    BoundsPoint(definition.normalizedPosition), out occlusionTarget);
+                    transform.InverseTransformPoint(hotspotSpace.TransformPoint(
+                        BoundsPoint(definition.normalizedPosition))), out occlusionTarget);
             }
             AnatomyHotspotAnchorSettings authoringSettings = anchor != null
                 ? anchor.GetComponent<AnatomyHotspotAnchorSettings>() : null;
@@ -388,6 +438,8 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
                 anchor = new GameObject("LabelAnchor_Rectum").transform;
                 anchor.SetParent(transform, false);
             }
+            if (anchor == null && !string.IsNullOrEmpty(definition.targetName))
+                anchor = CreateTargetAnchor(definition);
             if (anchor != null && string.Equals(organKey,
                     "Female_Reproductive_system", StringComparison.OrdinalIgnoreCase))
             {
@@ -947,6 +999,165 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         return null;
     }
 
+    private Transform CreateTargetAnchor(Hotspot definition)
+    {
+        Transform target = null;
+        Renderer materialTargetRenderer = null;
+        int materialTargetSubmesh = -1;
+        bool useMaterial = definition.targetName.StartsWith("material:",
+            StringComparison.OrdinalIgnoreCase);
+        string searchName = useMaterial
+            ? definition.targetName.Substring("material:".Length)
+            : definition.targetName;
+
+        Transform[] allTransforms = GetComponentsInChildren<Transform>(true);
+        if (useMaterial)
+        {
+            foreach (Transform candidate in allTransforms)
+            {
+                Renderer renderer = candidate.GetComponent<Renderer>();
+                if (renderer == null)
+                    continue;
+                Material[] materials = renderer.sharedMaterials;
+                for (int i = 0; i < materials.Length; i++)
+                {
+                    if (materials[i] != null && NameContains(materials[i].name, searchName))
+                    {
+                        target = candidate;
+                        materialTargetRenderer = renderer;
+                        materialTargetSubmesh = i;
+                        break;
+                    }
+                }
+                if (target != null)
+                    break;
+            }
+        }
+        else
+        {
+            foreach (Transform candidate in allTransforms)
+            {
+                if (string.Equals(candidate.name, searchName,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    target = candidate;
+                    break;
+                }
+            }
+            if (target == null)
+            {
+                foreach (Transform candidate in allTransforms)
+                {
+                    if (NameContains(candidate.name, searchName))
+                    {
+                        target = candidate;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (target == null)
+        {
+            Debug.LogWarning("[Labels] Could not find model part '" + searchName +
+                "' for label '" + definition.title + "' on '" + organKey + "'.");
+            return null;
+        }
+
+        Renderer[] renderers = materialTargetRenderer != null
+            ? new[] { materialTargetRenderer }
+            : target.GetComponentsInChildren<Renderer>(true);
+        Vector3 min = Vector3.positiveInfinity;
+        Vector3 max = Vector3.negativeInfinity;
+        bool found = false;
+        foreach (Renderer renderer in renderers)
+        {
+            if (renderer == null || renderer is LineRenderer ||
+                renderer.GetComponent<TMP_Text>() != null)
+                continue;
+
+            Bounds localRendererBounds;
+            bool hasLocalBounds = false;
+            SkinnedMeshRenderer skinned = renderer as SkinnedMeshRenderer;
+            if (skinned != null)
+            {
+                localRendererBounds = skinned.localBounds;
+                hasLocalBounds = true;
+            }
+            else
+            {
+                MeshFilter filter = renderer.GetComponent<MeshFilter>();
+                if (filter != null && filter.sharedMesh != null)
+                {
+                    if (renderer == materialTargetRenderer && materialTargetSubmesh >= 0 &&
+                        materialTargetSubmesh < filter.sharedMesh.subMeshCount)
+                    {
+                        localRendererBounds = filter.sharedMesh.GetSubMesh(
+                            materialTargetSubmesh).bounds;
+                        if (localRendererBounds.size.sqrMagnitude < 0.000001f)
+                            localRendererBounds = filter.sharedMesh.bounds;
+                    }
+                    else
+                    {
+                        localRendererBounds = filter.sharedMesh.bounds;
+                    }
+                    hasLocalBounds = true;
+                }
+                else
+                {
+                    localRendererBounds = renderer.bounds;
+                }
+            }
+
+            for (int x = -1; x <= 1; x += 2)
+            for (int y = -1; y <= 1; y += 2)
+            for (int z = -1; z <= 1; z += 2)
+            {
+                Vector3 point = localRendererBounds.center + Vector3.Scale(
+                    localRendererBounds.extents, new Vector3(x, y, z));
+                if (hasLocalBounds)
+                    point = renderer.transform.TransformPoint(point);
+                point = hotspotSpace.InverseTransformPoint(point);
+                min = Vector3.Min(min, point);
+                max = Vector3.Max(max, point);
+                found = true;
+            }
+        }
+
+        if (!found)
+        {
+            Debug.LogWarning("[Labels] Model part '" + searchName +
+                "' has no visible renderer for label '" + definition.title + "'.");
+            return null;
+        }
+
+        GameObject anchorObject = new GameObject("HotspotAnchor_" + definition.title);
+        Transform anchor = anchorObject.transform;
+        anchor.SetParent(target, false);
+        Vector3 center = (min + max) * 0.5f;
+        Vector3 extents = (max - min) * 0.5f;
+        Vector3 modelLocalPoint = center + Vector3.Scale(extents, definition.targetOffset);
+        anchor.localPosition = target.InverseTransformPoint(
+            hotspotSpace.TransformPoint(modelLocalPoint));
+        return anchor;
+    }
+
+    private static bool NameContains(string candidate, string search)
+    {
+        if (string.IsNullOrEmpty(candidate) || string.IsNullOrEmpty(search))
+            return false;
+
+        System.Text.StringBuilder candidateKey = new System.Text.StringBuilder();
+        System.Text.StringBuilder searchKey = new System.Text.StringBuilder();
+        foreach (char character in candidate)
+            if (char.IsLetterOrDigit(character))
+                candidateKey.Append(char.ToLowerInvariant(character));
+        foreach (char character in search)
+            if (char.IsLetterOrDigit(character))
+                searchKey.Append(char.ToLowerInvariant(character));
+        return candidateKey.ToString().Contains(searchKey.ToString());
+    }
+
     private Vector3 HotspotLocalPoint(Hotspot hotspot)
     {
         if (hotspot.lockAnchorLocalPosition &&
@@ -954,9 +1165,14 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             return hotspot.lockedAnchorLocalPosition;
         if (hotspot.anchorTransform != null)
             return transform.InverseTransformPoint(hotspot.anchorTransform.position);
-        return hotspot.hasExplicitLocalPosition
-            ? hotspot.explicitLocalPosition
-            : BoundsPoint(hotspot.normalizedPosition);
+        if (hotspot.hasExplicitLocalPosition)
+            return hotspot.explicitLocalPosition;
+
+        // Hotspot positions are authored in the same local space as the model
+        // controller. Convert through world space so child-controller rotations
+        // carry the pins with the mesh while the overlay remains on the prefab root.
+        return transform.InverseTransformPoint(
+            hotspotSpace.TransformPoint(BoundsPoint(hotspot.normalizedPosition)));
     }
 
     private bool TryGetHeartSupplementalAnchor(string title, out Vector3 localPosition)
@@ -1006,13 +1222,42 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
         Vector3 max = Vector3.negativeInfinity;
         foreach (Renderer renderer in renderers)
         {
-            Bounds b = renderer.bounds;
+            if (renderer == null || renderer is LineRenderer ||
+                renderer.GetComponent<TMP_Text>() != null)
+                continue;
+
+            Bounds sourceBounds;
+            bool hasLocalBounds = false;
+            SkinnedMeshRenderer skinnedRenderer = renderer as SkinnedMeshRenderer;
+            if (skinnedRenderer != null)
+            {
+                sourceBounds = skinnedRenderer.localBounds;
+                hasLocalBounds = true;
+            }
+            else
+            {
+                MeshFilter meshFilter = renderer.GetComponent<MeshFilter>();
+                if (meshFilter != null && meshFilter.sharedMesh != null)
+                {
+                    sourceBounds = meshFilter.sharedMesh.bounds;
+                    hasLocalBounds = true;
+                }
+                else
+                {
+                    sourceBounds = renderer.bounds;
+                }
+            }
+
             for (int x = -1; x <= 1; x += 2)
             for (int y = -1; y <= 1; y += 2)
             for (int z = -1; z <= 1; z += 2)
             {
-                Vector3 corner = transform.InverseTransformPoint(b.center +
-                    Vector3.Scale(b.extents, new Vector3(x, y, z)));
+                Vector3 sourceCorner = sourceBounds.center +
+                    Vector3.Scale(sourceBounds.extents, new Vector3(x, y, z));
+                Vector3 worldCorner = hasLocalBounds
+                    ? renderer.transform.TransformPoint(sourceCorner)
+                    : sourceCorner;
+                Vector3 corner = hotspotSpace.InverseTransformPoint(worldCorner);
                 min = Vector3.Min(min, corner);
                 max = Vector3.Max(max, corner);
                 found = true;
@@ -1208,8 +1453,15 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
                 }
             }
         }
-        Vector3 localSurfaceNormal = transform.InverseTransformDirection(
-            viewAnchor.forward);
+        Vector3 modelLocalPoint = hotspot.hasExplicitLocalPosition
+            ? hotspotSpace.InverseTransformPoint(transform.TransformPoint(localPoint))
+            : hotspot.anchorTransform != null
+                ? hotspotSpace.InverseTransformPoint(hotspot.anchorTransform.position)
+                : BoundsPoint(hotspot.normalizedPosition);
+        Vector3 localSurfaceNormal = viewAnchor != null
+            ? transform.InverseTransformDirection(viewAnchor.forward)
+            : transform.InverseTransformDirection(hotspotSpace.TransformDirection(
+                modelLocalPoint - localBounds.center));
         if (localSurfaceNormal.sqrMagnitude < 0.0001f)
             localSurfaceNormal = Vector3.forward;
         Vector3 desiredLocalView = localSurfaceNormal.normalized;
@@ -1490,32 +1742,33 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
             },
             ["Eye"] = new[]
             {
-                H("Sclera", "The sclera is the tough outer coat that protects the eyeball.", 0.7f, 0.42f, 0.55f),
-                H("Cornea", "The clear cornea covers the front of the eye and bends incoming light.", 0.0f, 0.08f, 1.1f),
-                H("Iris", "The iris controls pupil size and gives the eye much of its visible color.", 0.0f, 0.02f, 1.16f),
-                H("Pupil", "The pupil is the opening that lets light enter the eye.", 0.0f, 0.02f, 1.2f),
-                H("Lens", "The lens changes shape to focus light onto the retina.", 0.0f, 0.0f, 0.65f),
-                H("Retina", "The retina senses light and converts it into signals for the brain.", 0.0f, 0.0f, -0.92f),
-                H("Optic nerve", "The optic nerve carries visual signals from the retina to the brain.", 0.0f, -0.4f, -1.1f)
+                H("Sclera", "The sclera is the tough outer coat that protects the eyeball.", 0.65f, 0.35f, 0.45f),
+                H("Cornea", "The clear cornea covers the front of the eye and bends incoming light.", 0.0f, 0.05f, 0.95f),
+                H("Iris", "The iris controls pupil size and gives the eye much of its visible color.", 0.0f, 0.02f, 0.82f),
+                H("Pupil", "The pupil is the opening that lets light enter the eye.", 0.0f, 0.02f, 1.0f),
+                H("Lens", "The lens changes shape to focus light onto the retina.", 0.0f, 0.0f, 0.25f),
+                H("Retina", "The retina senses light and converts it into signals for the brain.", 0.0f, 0.0f, -0.8f),
+                H("Optic nerve", "The optic nerve carries visual signals from the retina to the brain.", 0.0f, -0.3f, -0.95f)
             },
             ["Lung"] = new[]
             {
-                H("Trachea", "The trachea carries air between the throat and the bronchi.", 0.0f, 0.88f, 0.3f),
-                H("Right lung", "The right lung contains three lobes and exchanges oxygen and carbon dioxide.", -0.48f, 0.05f, 0.65f),
-                H("Left lung", "The left lung contains two lobes and leaves space for the heart.", 0.48f, 0.05f, 0.65f),
-                H("Main bronchi", "The bronchi branch from the trachea and carry air into each lung.", 0.0f, 0.55f, 0.8f),
-                H("Lung base", "The lower lung surfaces rest on the diaphragm, the main breathing muscle.", 0.0f, -0.86f, 0.4f),
-                H("Pleural surface", "The pleura is a thin membrane that surrounds each lung and reduces friction during breathing.", 0.78f, -0.2f, 0.3f)
+                HOn("Larynx", "The larynx sits above the trachea and helps direct air into the airway.", "Larynx", Vector3.zero),
+                HOn("Trachea", "The trachea carries air from the larynx toward the bronchi.", "Respiratoy_Trachea_Geo", Vector3.zero),
+                HOn("Main bronchi", "The main bronchi branch from the trachea and carry air into the lung.", "Respiratoy_Bronchi_Geo_Right", Vector3.zero),
+                HOn("Lung", "The model shows a right lung; it exchanges oxygen and carbon dioxide with the blood.", "Respiratoy_Lung_Geo_Right", Vector3.zero),
+                HOn("Lung apex", "The apex is the upper tip of the lung.", "Respiratoy_Lung_Geo_Right", new Vector3(0f, 0.8f, 0f)),
+                HOn("Lung base", "The base is the lower surface of the lung, which rests on the diaphragm.", "Respiratoy_Lung_Geo_Right", new Vector3(0f, -0.8f, 0f)),
+                HOn("Pleural surface", "The pleura is the thin membrane covering the outside of the lung.", "Respiratoy_Lung_Geo_Right", new Vector3(0.85f, 0f, 0f))
             },
             ["Kidney"] = new[]
             {
-                H("Renal cortex", "The cortex is the kidney's outer layer, where blood filtration begins.", -0.58f, 0.55f, 0.5f),
-                H("Renal medulla", "The medulla contains structures that help concentrate urine.", 0.12f, 0.35f, 0.65f),
-                H("Renal artery", "The renal artery brings blood to the kidney for filtration.", 0.8f, 0.15f, 0.5f),
-                H("Renal vein", "The renal vein carries filtered blood away from the kidney.", 0.8f, -0.05f, 0.5f),
-                H("Renal pelvis", "The renal pelvis collects urine and funnels it toward the ureter.", 0.18f, -0.15f, 0.8f),
-                H("Ureter", "The ureter carries urine from the kidney to the bladder.", 0.15f, -0.85f, 0.6f),
-                H("Renal capsule", "The renal capsule is a thin protective covering around the kidney.", -0.72f, -0.2f, 0.45f)
+                HOn("Renal cortex", "The cortex is the kidney's outer layer, where blood filtration begins.", "material:Cortex Diffuse", new Vector3(0f, 0f, 0.7f)),
+                HOn("Renal medulla", "The medulla contains structures that help concentrate urine.", "material:Medulla pyramid Diffuse", Vector3.zero),
+                HOn("Renal artery", "The renal artery brings blood to the kidney for filtration.", "material:Renal & Ureter Diffuse", new Vector3(0.6f, 0.15f, 0.45f)),
+                HOn("Renal vein", "The renal vein carries filtered blood away from the kidney.", "material:Renal & Ureter Diffuse", new Vector3(0.6f, -0.05f, 0.45f)),
+                HOn("Renal pelvis", "The renal pelvis collects urine and funnels it toward the ureter.", "material:Renal & Ureter Diffuse", new Vector3(0f, 0f, 0.3f)),
+                HOn("Ureter", "The ureter carries urine from the kidney to the bladder.", "material:Renal & Ureter Diffuse", new Vector3(0f, -0.8f, 0.1f)),
+                HOn("Renal capsule", "The renal capsule is a thin protective covering around the kidney.", "material:Capsule 1", new Vector3(0f, 0f, 0.8f))
             },
             ["Neuron"] = new[]
             {
@@ -1529,6 +1782,37 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
                 H("Node of Ranvier", "A node of Ranvier is a gap between myelin segments where the signal is renewed.", 0.85f, -0.02f, 0.5f),
                 H("Axon terminals", "Axon terminals pass signals to a target cell, often by releasing neurotransmitters.", 0.9f, -0.45f, 0.35f),
                 H("Synaptic knobs", "Synaptic knobs are enlarged terminal endings that release neurotransmitters into a synapse.", 0.98f, -0.66f, 0.25f)
+            },
+            ["Digestive_system"] = new[]
+            {
+                HOn("Stomach", "The stomach churns food and mixes it with acid and enzymes to begin digestion.", "Division_1_stomach_0", Vector3.zero)
+            },
+            ["Plant_cell"] = new[]
+            {
+                HOn("Cell boundary", "The outer cell boundary is made of a supportive wall and a selectively permeable membrane.", "cell", Vector3.zero, new Vector3(0f, 0f, 0.9f)),
+                HOn("Nucleus", "The nucleus contains DNA and helps direct the cell's activities.", "nucleus", Vector3.zero, new Vector3(-0.45f, 0.3f, 0.75f)),
+                HOn("Chloroplast", "Chloroplasts capture light energy to make sugars through photosynthesis.", "chloroplast.out", Vector3.zero, new Vector3(0.5f, 0.4f, 0.7f)),
+                HOn("Central vacuole", "The large central vacuole stores water and helps keep the plant cell firm.", "vacuole", Vector3.zero, new Vector3(0f, -0.1f, 0.7f)),
+                HOn("Cytoplasm", "Cytoplasm fills the cell and surrounds its organelles.", "cytoplasm", Vector3.zero, new Vector3(0.3f, -0.45f, 0.75f)),
+                HOn("Mitochondrion", "Mitochondria release usable energy from nutrients for the cell.", "mitochondria", Vector3.zero, new Vector3(-0.5f, -0.5f, 0.7f)),
+                HOn("Rough endoplasmic reticulum", "The rough endoplasmic reticulum helps make and transport proteins.", "rough.ER", Vector3.zero, new Vector3(0f, 0.1f, -0.7f)),
+                HOn("Golgi apparatus", "The Golgi apparatus modifies, sorts, and packages materials made by the cell.", "golgi.appratus", Vector3.zero, new Vector3(0.4f, -0.2f, 0.7f)),
+                HOn("Ribosomes", "Ribosomes assemble proteins from amino acids.", "ribosomes", Vector3.zero, new Vector3(0.8f, 0.5f, 0.7f))
+            },
+            ["Nephron"] = new[]
+            {
+                HOn("Nephron", "A nephron filters blood, reabsorbs needed water and solutes, and helps form urine.", "_0", Vector3.zero, new Vector3(0f, 0f, 0.8f))
+            },
+            ["Animal_cell"] = new[]
+            {
+                HOn("Nucleus", "The nucleus stores DNA and helps coordinate cell activities.", "material:Nucleus_Shell", Vector3.zero, new Vector3(-0.35f, 0.25f, 0.75f)),
+                HOn("Mitochondrion", "Mitochondria convert energy from food into a form the cell can use.", "material:Mitochondria_Material", Vector3.zero, new Vector3(0.45f, -0.25f, 0.75f)),
+                HOn("Endoplasmic reticulum", "The endoplasmic reticulum helps build and move proteins and lipids.", "material:Endoplasmic_Reticulum_Mat", Vector3.zero, new Vector3(-0.65f, -0.28f, 0.55f)),
+                HOn("Golgi apparatus", "The Golgi apparatus modifies, sorts, and packages proteins and other materials.", "material:Golgi_Apparatus_Mat", Vector3.zero, new Vector3(0f, -0.65f, 0.75f)),
+                HOn("Lysosome", "Lysosomes contain enzymes that break down waste and worn-out cell parts.", "material:Lysosome", Vector3.zero, new Vector3(0.72f, 0.58f, 0.5f)),
+                HOn("Vacuole", "Vesicles and vacuoles store and transport materials within the cell.", "material:Vacoule", Vector3.zero, new Vector3(0.2f, 0.55f, 0.65f)),
+                HOn("Vesicle", "Vesicles carry materials between parts of the cell.", "material:VesicleShell_Mat", Vector3.zero, new Vector3(-0.1f, -0.5f, 0.65f)),
+                HOn("Cytoskeleton", "The cytoskeleton helps maintain cell shape and organize internal movement.", "material:Cytoskeleton", Vector3.zero, new Vector3(0.8f, 0f, 0.2f))
             },
             ["Female_Reproductive_system"] = new[]
             {
@@ -1549,5 +1833,20 @@ public sealed class AnatomyHotspotOverlay : MonoBehaviour
     {
         return new Hotspot { title = title, description = description,
             normalizedPosition = new Vector3(x, y, z) };
+    }
+
+    private static Hotspot HOn(string title, string description, string targetName,
+        Vector3 targetOffset)
+    {
+        return HOn(title, description, targetName, targetOffset,
+            new Vector3(0f, 0f, 0.8f));
+    }
+
+    private static Hotspot HOn(string title, string description, string targetName,
+        Vector3 targetOffset, Vector3 fallbackPosition)
+    {
+        return new Hotspot { title = title, description = description,
+            targetName = targetName, targetOffset = targetOffset,
+            normalizedPosition = fallbackPosition };
     }
 }
