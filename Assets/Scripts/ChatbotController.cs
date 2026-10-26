@@ -12,6 +12,7 @@ public class ChatbotController : MonoBehaviour
 
     [Header("UI References")]
     public GameObject panelRoot;         // drag ChatPanel here
+    public GameObject chatLauncherButton;
     public TMP_Text chatHistoryText;     // drag ChatHistoryText here
     public TMP_InputField inputField;    // drag ChatInputField here
 
@@ -71,11 +72,16 @@ public class ChatbotController : MonoBehaviour
         MenuToggle.CloseOpenMenu();
         ConfigureChatLayout();
         panelRoot.SetActive(true);
+        if (chatLauncherButton != null)
+            chatLauncherButton.SetActive(false);
         ScrollChatToBottom();
     }
     public void CloseChat()
     {
-        panelRoot.SetActive(false);
+        if (panelRoot != null)
+            panelRoot.SetActive(false);
+        if (chatLauncherButton != null)
+            chatLauncherButton.SetActive(true);
     }
 
     public void ShowNotice(string message)
@@ -100,7 +106,7 @@ public class ChatbotController : MonoBehaviour
         if (!IsOpenAIKeyConfigured())
         {
             AppendToHistory("Assistant",
-                "This doesn't look like an OpenAI API key. Add your OpenAI secret key (it starts with sk-) to the ChatPanel, ExplanationPanel, and MicButton settings.");
+                "Add your OpenAI API key to the ChatbotController component on AIChatPanel in the Unity Inspector. The key must start with sk-.");
             return;
         }
 
@@ -262,6 +268,8 @@ public class ChatbotController : MonoBehaviour
         }
 
         RectTransform closeRect = GetChildRect("CloseChatButton");
+        if (closeRect == null)
+            closeRect = CreateCloseButton();
         if (closeRect != null)
         {
             closeRect.anchorMin = closeRect.anchorMax = new Vector2(0.96f, 0.94f);
@@ -327,6 +335,36 @@ public class ChatbotController : MonoBehaviour
         headerText.raycastTarget = false;
 
         chatLayoutConfigured = true;
+    }
+
+    private RectTransform CreateCloseButton()
+    {
+        GameObject buttonObject = new GameObject("CloseChatButton",
+            typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(panelRoot.transform, false);
+
+        Image image = buttonObject.GetComponent<Image>();
+        image.color = new Color32(20, 126, 133, 255);
+
+        Button button = buttonObject.GetComponent<Button>();
+        button.targetGraphic = image;
+        button.onClick.AddListener(CloseChat);
+
+        GameObject labelObject = new GameObject("CloseIcon",
+            typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+        labelObject.transform.SetParent(buttonObject.transform, false);
+        RectTransform labelRect = labelObject.GetComponent<RectTransform>();
+        StretchTextRect(labelRect);
+
+        TMP_Text label = labelObject.GetComponent<TMP_Text>();
+        label.text = "×";
+        label.font = TMP_Settings.defaultFontAsset;
+        label.fontSize = 42f;
+        label.color = Color.white;
+        label.alignment = TextAlignmentOptions.Center;
+        label.raycastTarget = false;
+
+        return buttonObject.GetComponent<RectTransform>();
     }
 
     private RectTransform GetChildRect(string childName)

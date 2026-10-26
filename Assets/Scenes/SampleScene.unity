@@ -669,7 +669,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Ask something about the heart...
+  m_text: Ask a question about this model...
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -1231,7 +1231,7 @@ GameObject:
   - component: {fileID: 809136068}
   - component: {fileID: 809136067}
   m_Layer: 5
-  m_Name: QuestionInput
+  m_Name: ChatInputField
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1627,6 +1627,7 @@ GameObject:
   - component: {fileID: 1158713958}
   - component: {fileID: 1158713957}
   - component: {fileID: 1158713956}
+  - component: {fileID: 300042001}
   m_Layer: 5
   m_Name: AIChatPanel
   m_TagString: Untagged
@@ -1664,6 +1665,23 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &300042001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1158713955}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04a000d169f7d654ebc1254a12001414, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  panelRoot: {fileID: 1158713955}
+  chatLauncherButton: {fileID: 1725464771}
+  chatHistoryText: {fileID: 685179042}
+  inputField: {fileID: 809136067}
+  apiKey: YOUR_API_KEY_HERE
 --- !u!222 &1158713957
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1911,9 +1929,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 252164488}
-        m_TargetAssemblyTypeName: AIChat, Assembly-CSharp
-        m_MethodName: SendQuestion
+      - m_Target: {fileID: 300042001}
+        m_TargetAssemblyTypeName: ChatbotController, Assembly-CSharp
+        m_MethodName: OnSendPressed
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
